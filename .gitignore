@@ -1,0 +1,8 @@
+/artifacts/.generated*
+*.log
+*.dump
+install
+output
+/platforms/occamy
+/platforms/carfield
+.vscode

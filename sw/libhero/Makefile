@@ -25,7 +25,7 @@ SRCS_safety_island := src/carfield/safety_island.c
 CFLAGS_spatz_cluster := -I src/carfield -I $(HERO_ROOT)/cva6-sdk/sw/drivers/carfield
 SRCS_spatz_cluster := src/carfield/spatz_cluster.c
 
-CFLAGS_occamy := -I src/occamy
+CFLAGS_occamy := -I src/occamy -I $(HERO_ROOT)/cva6-sdk/sw/drivers/occamy
 SRCS_occamy := src/occamy/snitch_cluster.c
 
 # Final variables

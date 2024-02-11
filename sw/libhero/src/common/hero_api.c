@@ -71,8 +71,12 @@ void hero_print_timestamp() {
         printf("%s %s %lu %lu\n", time_list[i].str_info, time_list[i].str_func, time_list[i].cycle, (i<hero_num_time_list-1) ? time_list[i+1].cycle - time_list[i].cycle : 0);
     }
 #elif HERO_TIMESTAMP_MODE == 1
+    printf("info function time diff\n");
+    struct timespec diff = {0};
     for(int i = 0; i < hero_num_time_list; i++) {
-        printf("%s %s %d.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec);
+        if (i < hero_num_time_list - 1)
+            sub_timespec(time_list[i].timespec, time_list[i+1].timespec, &diff);
+        printf("%s %s %d.%.9ld %d.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec, diff.tv_sec, diff.tv_nsec);
     }
 #endif
 }
@@ -193,12 +197,17 @@ int hero_dev_alloc_mboxes(HeroDev *dev) {
     dev->mboxes.a2h_mbox = hero_dev_l2_malloc(dev, sizeof(struct ring_buf), &dev->mboxes.a2h_mbox_mem.p_addr);
     dev->mboxes.a2h_mbox->data_v = hero_dev_l2_malloc(dev, sizeof(uint32_t)*16, &dev->mboxes.a2h_mbox->data_p);
 
-    if(dev->mboxes.a2h_mbox < 0 || dev->mboxes.h2a_mbox < 0) {
+    // Same for the rb mailbox
+    dev->mboxes.rb_mbox = hero_dev_l2_malloc(dev, sizeof(struct ring_buf), &dev->mboxes.rb_mbox_mem.p_addr);
+    dev->mboxes.rb_mbox->data_v = hero_dev_l2_malloc(dev, sizeof(uint32_t)*16, &dev->mboxes.rb_mbox->data_p);
+
+    if(dev->mboxes.a2h_mbox < 0 || dev->mboxes.h2a_mbox < 0 || dev->mboxes.rb_mbox < 0) {
         return -1;
     }
 
     rb_init(dev->mboxes.a2h_mbox, 16, sizeof(uint32_t));
     rb_init(dev->mboxes.h2a_mbox, 16, sizeof(uint32_t));
+    rb_init(dev->mboxes.rb_mbox, 16, sizeof(uint32_t));
 
     return 0;
 }
@@ -385,17 +394,20 @@ int hero_dev_offload_l3_copy_raw_in(HeroDev *dev, const TaskDesc *task,
 uintptr_t hero_dev_l2_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
     void *result = o1heapAllocate(l2_heap_manager, size_b);
     *p_addr = (void *) result - l2_heap_start_virt + l2_heap_start_phy;
+    pr_trace("%s Allocated %u bytes at %lx\n", __func__, size_b, (void *) result - l2_heap_start_virt + l2_heap_start_phy);
     return result;
 }
 
 uintptr_t hero_dev_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
     void *result = o1heapAllocate(l3_heap_manager, size_b);
     *p_addr = (void *) result - l3_heap_start_virt + l3_heap_start_phy;
+    pr_trace("%s Allocated %u bytes at %lx\n", __func__, size_b, (void *) result - l3_heap_start_virt + l3_heap_start_phy);
     return result;
 }
 
 void hero_dev_l3_free(HeroDev *dev, uintptr_t v_addr, uintptr_t p_addr) {
-    pr_warn("%s unimplemented\n", __func__);
+    //pr_warn("%s unimplemented\n", __func__);
+    o1heapFree(l3_heap_manager, v_addr);
 }
 
 int hero_dev_dma_xfer(const HeroDev *dev, uintptr_t addr_l3,

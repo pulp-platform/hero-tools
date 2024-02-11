@@ -165,6 +165,8 @@ typedef struct {
     HeroSubDev_t a2h_mbox_mem;
     volatile struct ring_buf *h2a_mbox;
     HeroSubDev_t h2a_mbox_mem;
+    volatile struct ring_buf *rb_mbox;
+    HeroSubDev_t rb_mbox_mem;
 } HeroMboxes_t;
 
 typedef struct {

@@ -16,6 +16,8 @@ RISCV          = $(BR_OUTPUT_DIR)/host
 CC            := $(RISCV)/bin/riscv64-buildroot-linux-gnu-gcc
 CXX           := $(RISCV)/bin/riscv64-buildroot-linux-gnu-g++
 
+PLATFORM ?= SNITCH
+
 LLVM_DIR := $(realpath ../libllvm)
 LIBOMPTARGET_LLVM_INCLUDE_DIRS := $(realpath ../libllvm/include/llvm)
 HERO_LIBHERO_DIR := $(realpath ../../sw/libhero)
@@ -34,7 +36,7 @@ LLVM_COMPILE_FLAGS= \
 	-DLIBOMPTARGET_DEP_LIBFFI_LIBRARIES='$(RISCV)/riscv64-buildroot-linux-gnu/sysroot/usr/lib/' \
 	-DLIBOMPTARGET_DEP_LIBFFI_INCLUDE_DIRS='$(RISCV)/riscv64-buildroot-linux-gnu/sysroot/usr/include/' \
 	-DLIBOMPTARGET_BUILD_CUDA_PLUGIN=0 \
-	-DLIBOMPTARGET_HERO_DEV_TYPE=$(PLATFORM) \
+	-DLIBOMPTARGET_HERO_DEV_TYPE='$(PLATFORM)' \
 	-DLIBOMPTARGET_LLVM_INCLUDE_DIRS=$(LIBOMPTARGET_LLVM_INCLUDE_DIRS) \
 	-DOMPTARGET_DEBUG=1
 

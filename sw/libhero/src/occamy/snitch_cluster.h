@@ -2,26 +2,21 @@
 
 #include "libhero/util.h"
 
-// quadrant_ctrl
-#define OCCAMY_QUADRANT_S1_RESET_N_REG_OFFSET 0x4
-#define OCCAMY_QUADRANT_S1_ISOLATE_REG_OFFSET 0x8
-
 // The virtual addresses of the hardware
 static volatile void* occ_quad_ctrl;
+static volatile void* occ_soc_ctrl;
+static volatile void* occ_snitch_cluster;
+static volatile void* occ_l3;
+static volatile void* occ_l2;
+static volatile void* occ_clint;
 
-inline void occ_set_isolate(uint32_t status)
-{
-    uint32_t val = status ? 0x4 : 0x0;
+struct l3_layout {
+  uint32_t a2h_rb;
+  uint32_t a2h_mbox;
+  uint32_t h2a_mbox;
+  uint32_t heap;
+};
 
-    writew(val, occ_quad_ctrl + OCCAMY_QUADRANT_S1_ISOLATE_REG_OFFSET);
-    fence();
-}
-
-// Active low reset
-inline void occ_set_reset(uint32_t status)
-{
-    writew(val ? 0 : 1, occ_quad_ctrl + OCCAMY_QUADRANT_S1_RESET_N_REG_OFFSET);
-}
 
 // The Occamy driver device file
 int device_fd;
