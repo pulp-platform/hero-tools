@@ -4,12 +4,20 @@
 //
 // Cyril Koenig <cykoenig@iis.ee.ethz.ch>
 
-#include "debug.h"
-#include "herodev.h"
-#include "ringbuf.h"
-#include "io.h"
+#include "libhero/debug.h"
+#include "libhero/herodev.h"
+#include "libhero/ringbuf.h"
+#include "libhero/io.h"
 
 #include <stdint.h>
+
+// Stucture containing the *device* L2 and L3 allocator
+struct O1HeapInstance *l2_heap_manager, *l3_heap_manager;
+uintptr_t l2_heap_start_phy, l2_heap_start_virt;
+size_t l2_heap_size;
+uintptr_t l3_heap_start_phy, l3_heap_start_virt;
+int libhero_log_level = LOG_MAX;
+size_t l3_heap_size;
 
 // ----------------------------------------------------------------------------
 //
@@ -30,12 +38,12 @@
 // ----------------------------------------------------------------------------
 
 static int memtest(void *mem, size_t size, const char *cmt, uint8_t fillPat) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 static void *fesrv_run_wrap(void *fs) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
@@ -47,20 +55,17 @@ static void *fesrv_run_wrap(void *fs) {
 
 uint32_t hero_dev_read32(const volatile uint32_t *base_addr, uint32_t off,
                          char off_type) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 void hero_dev_write32(volatile uint32_t *base_addr, uint32_t off, char off_type,
                       uint32_t value) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
     int ret, retry = 0;
-    pr_trace("%s default\n", __func__);
-    pr_trace("dev->mboxes.a2h_mbox = %p\n", dev->mboxes.a2h_mbox);
-
     while (n_words--) {
         do {
             ret = rb_host_get(dev->mboxes.a2h_mbox, &buffer[n_words]);
@@ -77,9 +82,6 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
 
 int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
     int ret, retry = 0;
-    pr_trace("%s default\n", __func__);
-    pr_trace("dev->mboxes.h2a_mbox = %p\n", dev->mboxes.h2a_mbox);
-
     do {
         ret = rb_host_put(dev->mboxes.h2a_mbox, &word);
         if (ret) {
@@ -93,100 +95,106 @@ int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
 }
 
 int hero_dev_reserve_v_addr(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_free_v_addr(const HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 void hero_dev_print_v_addr(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 __attribute__((weak)) int hero_dev_mmap(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_alloc_mboxes(HeroDev *dev) {
     pr_trace("%s default\n", __func__);
-    dev->mboxes.a2h_mbox = hero_dev_l3_malloc(dev, sizeof(struct ring_buf), &dev->mboxes.a2h_mbox_mem.p_addr);
-    dev->mboxes.a2h_mbox->data_v = hero_dev_l3_malloc(dev, sizeof(uint32_t)*16, &dev->mboxes.a2h_mbox->data_p);
-    rb_init(dev->mboxes.a2h_mbox, 16, sizeof(uint32_t));
 
-    dev->mboxes.h2a_mbox = hero_dev_l3_malloc(dev, sizeof(struct ring_buf), &dev->mboxes.h2a_mbox_mem.p_addr);
-    dev->mboxes.h2a_mbox->data_v = hero_dev_l3_malloc(dev, sizeof(uint32_t)*16, &dev->mboxes.h2a_mbox->data_p);
-    rb_init(dev->mboxes.h2a_mbox, 16, sizeof(uint32_t));
+    // Alloc ringbuf structure
+    dev->mboxes.h2a_mbox = hero_dev_l2_malloc(dev, sizeof(struct ring_buf), &dev->mboxes.h2a_mbox_mem.p_addr);
+    // Alloc data array for ringbuf
+    dev->mboxes.h2a_mbox->data_v = hero_dev_l2_malloc(dev, sizeof(uint32_t)*16, &dev->mboxes.h2a_mbox->data_p);
+
+    // Same for the accel2host mailbox
+    dev->mboxes.a2h_mbox = hero_dev_l2_malloc(dev, sizeof(struct ring_buf), &dev->mboxes.a2h_mbox_mem.p_addr);
+    dev->mboxes.a2h_mbox->data_v = hero_dev_l2_malloc(dev, sizeof(uint32_t)*16, &dev->mboxes.a2h_mbox->data_p);
 
     if(dev->mboxes.a2h_mbox < 0 || dev->mboxes.h2a_mbox < 0) {
         return -1;
     }
+
+    rb_init(dev->mboxes.a2h_mbox, 16, sizeof(uint32_t));
+    rb_init(dev->mboxes.h2a_mbox, 16, sizeof(uint32_t));
+
     return 0;
 }
 
 int hero_dev_free_mboxes(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_munmap(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_clking_set_freq(HeroDev *dev, unsigned des_freq_mhz) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_clking_measure_freq(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 __attribute__((weak)) int hero_dev_init(HeroDev *dev) {
 
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 __attribute__((weak)) void hero_dev_reset(HeroDev *dev, unsigned full) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 int hero_dev_get_nb_pe(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_boot(HeroDev *dev, const TaskDesc *task) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_load_bin(HeroDev *dev, const char *name) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_load_bin_from_mem(HeroDev *dev, void *ptr, unsigned size) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 __attribute__((weak)) void hero_dev_exe_start(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     while(1) {}
 }
 
 void hero_dev_exe_stop(HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 int hero_dev_exe_wait(const HeroDev *dev, int timeout_s) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
@@ -194,134 +202,188 @@ int hero_dev_rab_req(const HeroDev *dev, unsigned addr_start, unsigned size_b,
                      unsigned char prot, unsigned char port,
                      unsigned char date_exp, unsigned char date_cur,
                      unsigned char use_acp, unsigned char rab_lvl) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 void hero_dev_rab_free(const HeroDev *dev, unsigned char date_cur) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 int hero_dev_rab_req_striped(const HeroDev *dev, const TaskDesc *task,
                              ElemPassType **pass_type, int n_elements) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 void hero_dev_rab_free_striped(const HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 int hero_dev_rab_soc_mh_enable(const HeroDev *dev,
                                const unsigned static_2nd_lvl_slices) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_rab_soc_mh_disable(const HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_rab_mh_enable(const HeroDev *dev, unsigned char use_acp,
                            unsigned char rab_mh_lvl) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_rab_mh_disable(const HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_smmu_enable(const HeroDev *dev, const unsigned char flags) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_smmu_disable(const HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_rab_ax_log_read(const HeroDev *dev) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_profile_info(const HeroDev *dev, ProfileInfo *profile_info) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_out(HeroDev *dev, TaskDesc *task) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_in(HeroDev *dev, TaskDesc *task) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_get_pass_type(const TaskDesc *task,
                                    ElemPassType **pass_type) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_rab_setup(const HeroDev *dev, const TaskDesc *task,
                                ElemPassType **pass_type, int n_ref) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_rab_free(const HeroDev *dev, const TaskDesc *task,
                               const ElemPassType **pass_type, int n_ref) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_pass_desc(HeroDev *dev, const TaskDesc *task,
                                const ElemPassType **pass_type) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_get_desc(const HeroDev *dev, TaskDesc *task,
                               const ElemPassType **pass_type) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_l3_copy_raw_out(HeroDev *dev, TaskDesc *task,
                                      const ElemPassType **pass_type) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_offload_l3_copy_raw_in(HeroDev *dev, const TaskDesc *task,
                                     const ElemPassType **pass_type) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
-__attribute__((weak)) uintptr_t hero_dev_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
-    pr_error("%s unimplemented\n", __func__);
-    return -1;
+uintptr_t hero_dev_l2_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
+    void *result = o1heapAllocate(l2_heap_manager, size_b);
+    *p_addr = (void *) result - l2_heap_start_virt + l2_heap_start_phy;
+    return result;
+}
+
+uintptr_t hero_dev_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
+    void *result = o1heapAllocate(l3_heap_manager, size_b);
+    *p_addr = (void *) result - l3_heap_start_virt + l3_heap_start_phy;
+    return result;
 }
 
 void hero_dev_l3_free(HeroDev *dev, uintptr_t v_addr, uintptr_t p_addr) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
 }
 
 int hero_dev_dma_xfer(const HeroDev *dev, uintptr_t addr_l3,
                       uintptr_t addr_pulp, size_t size_b, int host_read) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
 }
 
 int hero_dev_omp_offload_task(HeroDev *dev, TaskDesc *task) {
-    pr_error("%s unimplemented\n", __func__);
+    pr_warn("%s unimplemented\n", __func__);
     return 0;
+}
+
+int hero_dev_l3_init(HeroDev *dev) {
+    // Initialize L2 heap manager in the middle of the reserved memory range
+    if (!l3_heap_manager) {
+        if(!l3_heap_start_phy || !l3_heap_size) {
+            pr_error("%s does not know where to put the heap manager\n", __func__);
+            return -1;
+        }
+        pr_trace("Initializing o1heap at %p (%p) size %lx\n", (void *)(l3_heap_start_phy), (void *)(l3_heap_start_virt), l3_heap_size);
+        l3_heap_manager = o1heapInit((void *)(l3_heap_start_virt), l3_heap_size, NULL, NULL);
+        if (l3_heap_manager == NULL) {
+            pr_error("Failed to initialize L3 heap manager.\n");
+            return -ENOMEM;
+        } else {
+            pr_debug("Allocated L3 heap manager at %p.\n", l3_heap_manager);
+        }
+    } else {
+        pr_warn("%s is already initialized\n", __func__);
+    }
+    return 0;
+}
+
+int hero_dev_l2_init(HeroDev *dev) {
+    // Initialize L2 heap manager in the middle of the reserved memory range
+    if (!l2_heap_manager) {
+        if(!l2_heap_start_phy || !l2_heap_size) {
+            pr_error("%s does not know where to put the heap manager\n", __func__);
+            return -1;
+        }
+        pr_trace("Initializing o1heap at %p (%p) size %x\n", (void *) l2_heap_start_phy, (void *) l2_heap_start_virt, l2_heap_size);
+        l2_heap_manager = o1heapInit((void *) l2_heap_start_virt, l2_heap_size, NULL, NULL);
+        if (l2_heap_manager == NULL) {
+            pr_error("Failed to initialize L2 heap manager.\n");
+            return -ENOMEM;
+        } else {
+            pr_debug("Allocated L2 heap manager at %p.\n", l2_heap_manager);
+        }
+    } else {
+        pr_warn("%s is already initialized\n", __func__);
+    }
+    return 0;
+}
+
+__attribute__((weak)) uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
+    pr_warn("%s unimplemented\n", __func__);
+    return NULL;
 }

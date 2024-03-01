@@ -772,6 +772,11 @@ int hero_dev_offload_l3_copy_raw_in(HeroDev *dev, const TaskDesc *task,
  */
 uintptr_t hero_dev_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr);
 
+uintptr_t hero_dev_l2_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr);
+
+uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr);
+
+
 /** Free memory previously allocated in contiguous L3.
 
  \param    pulp   pointer to the PulpDev structure
@@ -819,6 +824,14 @@ int hero_dev_dma_xfer(const HeroDev *dev, uintptr_t addr_l3,
  \return   0 on success; negative value with an errno on errors.
  */
 int hero_dev_omp_offload_task(HeroDev *dev, TaskDesc *task);
+
+int hero_dev_dma_2d_memcpy(HeroDev *dev, uint64_t dst, uint64_t src, uint64_t size,
+                                     uint64_t dst_stride, uint64_t src_stride,
+                                     uint64_t num_reps);
+
+void hero_dev_dma_2d_blk_memcpy(HeroDev *dev, uint64_t dst, uint64_t src, uint64_t size,
+                                     uint64_t dst_stride, uint64_t src_stride,
+                                     uint64_t num_reps);
 
 //!@}
 

@@ -19,7 +19,7 @@
 
 ////// HERO_1 includes /////
 #ifdef __HERO_1
-#include <stdio.h>
+#include "helloworld_spatz.h"
 ////// HOST includes /////
 #else
 #include <stdint.h>
@@ -41,9 +41,19 @@ int main(int argc, char *argv[]) {
 #pragma omp target device(1) map(tofrom: tmp_1, tmp_2)
   {
     tmp_1 = tmp_2;
+#ifdef __HERO_1
+    // Clean the accumulator
+    _Float16 *a;
+    _Float16 *b;
+    fdotp_v16b(a, b, 64);
+#endif
   }
 
-  printf("Got %u", tmp_1);
+  printf("tmp_1 = %i\n", tmp_1);
+
+  uint64_t phys_ptr;
+  uint32_t *virt_ptr = hero_dev_l3_malloc(NULL, 64*sizeof(uint32_t), &phys_ptr);
+  memset(virt_ptr, 0xf0, 64*sizeof(uint32_t));
 
   return 0;
 }

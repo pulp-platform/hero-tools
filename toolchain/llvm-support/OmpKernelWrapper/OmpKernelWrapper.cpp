@@ -117,7 +117,7 @@ bool OmpKernelWrapper::runOnModule(Module &M) {
     this->changeTypeOfArgSizes(M, "__tgt_target_teams_nowait", 5);
   }
 
-  if (M.getTargetTriple() == "riscv32-hero-unknown-elf" || M.getTargetTriple() == "riscv32-snitch-unknown-elf") {
+  if (M.getTargetTriple() == "riscv32-hero-unknown-elf" || M.getTargetTriple() == "riscv32-snitch-unknown-elf" || M.getTargetTriple().rfind("riscv32-hero-hero",0)==0) {
     this->wrapOmpKernels(M);
   }
   if (M.getTargetTriple() == "riscv32-hero-unknown-elf") {
@@ -254,6 +254,7 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
     HostAS = 0;
   }
 
+
   Type *rawArgTy = Type::getInt64Ty(M.getContext());
   Type *argTy = Type::getInt64Ty(M.getContext())->getPointerTo(HostAS);
   Type *voidTy = Type::getVoidTy(M.getContext());
@@ -286,7 +287,7 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
       Value *index = ConstantInt::get(Type::getInt32Ty(M.getContext()), i);
 
       // ptr to ptr to argument of type i8
-      Value *argBufPtr = builder.CreateGEP(argTy, arg, {index});
+      Value *argBufPtr = builder.CreateGEP(rawArgTy, arg, {index});
 
       // cast ptr to ptr type to parameter type
       Type *paramType = kernelTy->getParamType(i);
@@ -296,6 +297,7 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
       // load parameter
       Value *param = builder.CreateLoad(paramType, paramPtr);
       derefArgs.push_back(param);
+
     }
 
     // Call original kernel, finish function
@@ -309,6 +311,7 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
     kernel->setName(OMP_WRAPPED_PREFIX + oldName);
     wrapper->setName(oldName);
   }
+
 }
 
 // Find OMP kernels and wrap list of T* args to single void** arg:

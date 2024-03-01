@@ -1,0 +1,136 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+  #GIT_SUBMODULE_PATHS: cva6-sdk
+  #GIT_CLONE_PATH: '$CI_BUILDS_DIR/$CI_PIPELINE_ID/$CI_PROJECT_NAME'
+  #GIT_CLONE_PATH: '$CI_BUILDS_DIR/$CI_JOB_ID/$CI_PROJECT_NAME'
+
+stages:
+  - init
+  - toolchains
+  - sw
+  - apps
+  - bitstreams
+
+init:
+  stage: init
+  script:
+    - echo $PATH
+    - which python
+    - echo $CI_BUILDS_DIR 
+    - du --max-depth=1 -h $CI_BUILDS_DIR/*
+    # Delete above 5 days
+    - find $CI_BUILDS_DIR/* -type f -mtime +5 -delete
+    - find $CI_BUILDS_DIR/* -type d -empty -delete
+
+pages:
+  stage: init
+  needs: [ init ]
+  script:
+  - mkdocs build --verbose
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - public
+
+gcc:
+  stage: toolchains
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-tc-gcc-artifacts
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - cva6-sdk/buildroot/output/host
+
+llvm:
+  stage: toolchains
+  needs: [ init, gcc ]
+  # This needs a bare shell with an up-to-date GZIP version
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-tc-llvm-artifacts
+  artifacts:
+    expire_in: 1 week
+    paths:
+      # Todo reduce size by removing the non used libs
+      - install
+
+all-sw:
+  stage: sw
+  needs: [ init, gcc, llvm ]
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-sw-all
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - sw/libllvm/lib/libLLVMSupport.a
+      - sw/libllvm/include
+      - sw/libomp/lib
+      - sw/libomp/include
+      - sw/libhero/lib/
+      - sw/libhero/include
+
+safety_island_apps:
+  stage: apps
+  needs: [ init, gcc, llvm, all-sw ]
+  before_script:
+    - source scripts/setenv.sh
+    - export SAFETY_ROOT=$CI_PROJECT_DIR/platforms/carfield/safety_island
+  script:
+    - make hero-safety-sw-all
+    - make -C apps/carfield/omp/helloworld all
+
+spatz_apps:
+  stage: apps
+  needs: [ init, gcc, llvm, all-sw ]
+  before_script:
+    - source scripts/setenv.sh
+    - export SPATZ_ROOT=$CI_PROJECT_DIR/platforms/occamy/carfield/spatz
+  script:
+    - make $SPATZ_ROOT
+    - make -C $SPATZ_ROOT vendor/snitch
+    - make -C $SPATZ_ROOT/sw/hero/device/runtime all
+
+occamy_apps:
+  stage: apps
+  needs: [ init, gcc, llvm, all-sw ]
+  before_script:
+    - source scripts/setenv.sh
+    - export OCCAMY_ROOT=$CI_PROJECT_DIR/platforms/occamy
+  script:
+    - make hero-occamy-sw-all
+    - make -C apps/occamy/omp/helloworld all
+
+occamy_bit:
+  stage: bitstreams
+  needs: [ init ]
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-occamy-bit-all-artifacts
+  when: manual
+  timeout: 12 hours
+
+safety_bit:
+  stage: bitstreams
+  needs: [ init ]
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-safety-bit-all-artifacts
+  when: manual
+  timeout: 12 hours
+
+spatz_bit:
+  stage: bitstreams
+  needs: [ init ]
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-spatz-bit-all-artifacts
+  when: manual
+  timeout: 12 hours

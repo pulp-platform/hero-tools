@@ -2,13 +2,21 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-obj-m := snitch_pcie.o
+HERO_ROOT = $(realpath ../..)
 
-CFLAGS += -DPCIE_OFFLOAD
+PLATFORM ?= BUILDROOT
+
+BR_OUTPUT_DIR ?= $(realpath ../../cva6-sdk/buildroot/output/)
+
+KERNEL_DIR_NATIVE := /lib/modules/$(shell uname -r)/build
+KERNEL_DIR_BUILDROOT := $(BR_OUTPUT_DIR)/build/linux-5.16.9
+
+CROSS_COMPILE_NATIVE ?=
+CROSS_COMPILE_BUILDROOT ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu-
+
+# Linux compilation arguments
+obj-m := hero_pcie_dts.o
 ccflags-y += ${CFLAGS} -O2 -DDEBUG
-
-HOST_KERNEL := $(shell uname -r)
-KERNEL_DIR := /lib/modules/$(HOST_KERNEL)/build
 
 .PHONY: all dis clean build
 
@@ -16,11 +24,10 @@ all: modules
 build: modules
 
 modules: $(patsubst %.o,%.c,$(obj-m)) $(patsubst %.o,%.h,$(obj-m))
-	echo ${CFLAGS}
-	$(MAKE) -S $(ARCH_ARG) $(CROSS_COMPILE_ARG) -C $(KERNEL_DIR) M=$(shell pwd) modules
+	$(MAKE) CROSS_COMPILE=$(CROSS_COMPILE_$(PLATFORM)) -C $(KERNEL_DIR_$(PLATFORM)) M=$(shell pwd) modules
 
 dis: modules
-	$(CROSS_COMPILE)objdump -DS snitch.ko > snitch.disasm
+	$(CROSS_COMPILE_$(PLATFORM))objdump -DS hero_pcie_dts.ko > hero_pcie_dts.disasm
 
 clean:
 	rm -f modules.order

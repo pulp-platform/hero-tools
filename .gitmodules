@@ -1,6 +1,8 @@
 [submodule "cva6-sdk"]
 	path = cva6-sdk
 	url = git@github.com:pulp-platform/cva6-sdk.git
+	ignore = dirty
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
 	url = git@iis-git.ee.ethz.ch:iis-compilers/llvm-project.git
+	ignore = dirty
