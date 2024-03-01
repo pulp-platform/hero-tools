@@ -9,6 +9,9 @@
 # using the Hero toolchain. They are also used to localize Linux images for
 # flashing FPGAs in other repositories
 
+export CC=/usr/pack/gcc-9.2.0-af/linux-x64/bin/gcc
+export CXX=/usr/pack/gcc-9.2.0-af/linux-x64/bin/g++
+
 export HERO_ROOT=$(pwd)
 export CVA6_SDK=$HERO_ROOT/cva6-sdk
 export HERO_INSTALL=$HERO_ROOT/install

@@ -19,14 +19,15 @@ init:
     - echo $CI_BUILDS_DIR 
     - du --max-depth=1 -h $CI_BUILDS_DIR/*
     # Delete above 5 days
-    - find $CI_BUILDS_DIR/* -type f -mtime +5 -delete
-    - find $CI_BUILDS_DIR/* -type d -empty -delete
+    # - find $CI_BUILDS_DIR/* -type f -mtime +5 -delete
+    # - find $CI_BUILDS_DIR/* -type d -empty -delete
 
 pages:
   stage: init
   needs: [ init ]
   script:
   - mkdocs build --verbose
+  when: manual
   artifacts:
     expire_in: 1 week
     paths:
