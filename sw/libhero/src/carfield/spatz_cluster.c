@@ -11,7 +11,8 @@
 #include "libhero/herodev.h"
 #include "libhero/io.h"
 #include "libhero/util.h"
-#include "safety_island.h"
+#include "libhero/herodev.h"
+#include "spatz_cluster.h"
 
 #include "carfield_driver.h"
 
@@ -62,24 +63,22 @@ int carfield_lookup_mmap(int device_fd, int mmap_id, void **res) {
 
 void hero_dev_reset(HeroDev *dev, unsigned full) {
     int err;
-    pr_trace("%s safety_island\n", __func__);
+    pr_trace("%s spatz_cluster\n", __func__);
     // Isolate
     car_set_isolate(1);
-    // Disable fetch enable
-    writew(0, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_FETCH_ENABLE_OFFSET);
     fence();
     // Disable clock
-    writew(0, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_CLK_EN_OFFSET);
+    writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence();
     // Reset and de-reset
-    writew(1, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_RST_OFFSET);
+    writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
     fence();
     for (volatile int i = 0; i < 16; i++)
 	;
-    writew(0, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_RST_OFFSET);
+    writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
     fence();
     // Enable clock
-    writew(1, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_CLK_EN_OFFSET);
+    writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence();
     // De-isolate
     car_set_isolate(0);
@@ -90,9 +89,12 @@ void hero_dev_reset(HeroDev *dev, unsigned full) {
 int hero_dev_mmap(HeroDev *dev) {
     int err = 0;
     device_fd = open("/dev/cardev--1", O_RDWR | O_SYNC);
-    pr_trace("%s safety_island\n", __func__);
+    pr_trace("%s spatz\n", __func__);
     // Call card_mmap from the driver map address spaces
     if (carfield_lookup_mmap(device_fd, SOC_CTRL_MMAP_ID, &car_soc_ctrl))
+        goto error_driver;
+
+    if (carfield_lookup_mmap(device_fd, MBOXES_MMAP_ID, &car_mboxes))
         goto error_driver;
     
     if (carfield_lookup_mmap(device_fd, CTRL_REGS_MMAP_ID, &chs_ctrl_regs))
@@ -116,22 +118,26 @@ int hero_dev_mmap(HeroDev *dev) {
     if (carfield_lookup_mmap(device_fd, IDMA_MMAP_ID, &chs_idma))
         goto error_driver;
 
-    if (carfield_lookup_mmap(device_fd, SAFETY_ISLAND_MMAP_ID, &car_safety_island))
+    //if (carfield_lookup_mmap(device_fd, SAFETY_ISLAND_MMAP_ID, &car_safety_island))
+    //    goto error_driver;
+
+    if (carfield_lookup_mmap(device_fd, SPATZ_CLUSTER_MMAP_ID, &car_spatz_cluster))
         goto error_driver;
     
     // Put the safety island memory map in the local_mems list for OpenMP to use
     HeroSubDev_t *local_mems_tail = malloc(sizeof(HeroSubDev_t));
-    size_t car_safety_island_size; 
-    uintptr_t car_safety_island_phys;
-    carfield_lookup_mem(device_fd, SAFETY_ISLAND_MMAP_ID, &car_safety_island_size, &car_safety_island_phys);
+    size_t car_spatz_cluster_size; 
+    uintptr_t car_spatz_cluster_phys;
+    carfield_lookup_mem(device_fd, SPATZ_CLUSTER_MMAP_ID, &car_spatz_cluster_size, &car_spatz_cluster_phys);
+    car_spatz_cluster_size = 0x20000;
     if(!local_mems_tail){
         pr_error("Error when allocating local_mems_tail.\n");
         goto error_driver;
     }
-    local_mems_tail->v_addr = car_safety_island;
+    local_mems_tail->v_addr = car_spatz_cluster;
     // TODO: Split lookup between device and host phy addr
-    local_mems_tail->p_addr = 0xFFFFFFFF & car_safety_island_phys;
-    local_mems_tail->size   = car_safety_island_size;
+    local_mems_tail->p_addr = 0xFFFFFFFF & car_spatz_cluster_phys;
+    local_mems_tail->size   = car_spatz_cluster_size;
     local_mems_tail->alias  = "l1_safety_island";
     dev->local_mems = local_mems_tail;
 
@@ -220,26 +226,27 @@ void hero_dev_exe_start(HeroDev *dev) {
 
     // Reset Safety Island
     car_set_isolate(1);
-    writew(0, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_CLK_EN_OFFSET);
+    writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence();
-    writew(1, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_RST_OFFSET);
+    writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
     fence();
     for (volatile int i = 0; i < 16; i++);
-    writew(0, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_RST_OFFSET);
+    writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
     fence();
-    writew(1, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_CLK_EN_OFFSET);
+    writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence(); 
     car_set_isolate(0);
 
 
 	// Write entry point into boot address
     // Todo get address from openmp
-	writew(0x60010080, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_BOOT_ADDR_OFFSET);
-    writew(0x60010080, car_safety_island + SAFETY_ISLAND_BOOT_ADDR_OFFSET);
+	writew(0x78000000, car_spatz_cluster + CARFIELD_SPATZ_CLUSTER_PERIPHERAL_OFFSET + CARFIELD_SPATZ_CLUSTER_PERIPHERAL_CLUSTER_BOOT_CONTROL_OFFSET);
     fence();
 
-	// Assert fetch enable
-	writew(1, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_FETCH_ENABLE_OFFSET);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_EN);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_SET);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_RCV_EN);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_RCV_SET);
 }
 
 int hero_dev_init(HeroDev *dev) {

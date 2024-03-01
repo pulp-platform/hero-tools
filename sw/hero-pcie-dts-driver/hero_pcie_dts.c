@@ -19,7 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "snitch_pcie.h"
+#include "hero_pcie_dts.h"
 
 #include <asm/io.h>  // ioremap, iounmap, iowrite32
 #include <linux/init.h>
@@ -33,7 +33,7 @@
 #include <linux/slab.h>  // kmalloc()
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Cyril Koenig");
+MODULE_AUTHOR("Pulp Platform");
 MODULE_DESCRIPTION("");
 MODULE_VERSION("");
 
@@ -88,7 +88,7 @@ static int bar_read_dtb(struct pci_dev *pci_dev, int bar, u64 offset, void **ret
   }
 
   // Copy DTB from FPGA
-  dtb_size = BIG_ENDIAN(ioread32(((uint32_t *)dtb_map) + 2));
+  dtb_size = BIG_ENDIAN(ioread32(((uint32_t *)dtb_map) + 1));
   *ret_dtb_blob = kzalloc(DTB_MAP_SIZE, GFP_KERNEL);
   if (!*ret_dtb_blob) {
     pr_err("kzalloc failed\n");
@@ -96,7 +96,7 @@ static int bar_read_dtb(struct pci_dev *pci_dev, int bar, u64 offset, void **ret
   }
 
   for (i = 0; i < dtb_size; i++)
-    *(((uint8_t *)*ret_dtb_blob) + i) = *(((uint8_t *)dtb_map) + 4 + i);
+    *(((uint8_t *)*ret_dtb_blob) + i) = *(((uint8_t *)dtb_map) + 0 + i);
 
   *ret_dtb_size = dtb_size;
 
@@ -181,6 +181,7 @@ struct hero_pci {
   int ovcs_id;
   void *dtb_blob;
   u32 dtb_size;
+  bool populated;
 };
 
 // extern struct device_node *of_root;
@@ -227,21 +228,24 @@ static int hero_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id) 
   data->dev = dev;
   data->pci_dev = pdev;
   data->ovcs_id = -1;
+  data->populated = 0;
 
   dev_info(dev, "Read BAR\n");
 
-  ret = bar_read_dtb(pdev, 2, 0, &data->dtb_blob, &data->dtb_size);
+  ret = bar_read_dtb(pdev, 4, 0, &data->dtb_blob, &data->dtb_size);
   if (ret) return ret;
 
   dev_info(dev, "Read dtb at %p\n", data->dtb_blob);
 
   HEXDUMP(((uint32_t *)data->dtb_blob), 8);
 
-  dev_info(dev, "Applying fdt to %p\n", data->dev->of_node);
-  ret = of_overlay_fdt_apply_to_node(data->dtb_blob, data->dtb_size, &data->ovcs_id,
-                                     data->dev->of_node);
+  dev_info(dev, "Applying fdt to %p\n", data->dev->parent->of_node);
+  ret = of_overlay_fdt_apply(data->dtb_blob, data->dtb_size, &data->ovcs_id,
+                             data->dev->parent->of_node);
   if (ret) dev_err(dev, "oops of_overlay_fdt_apply_to_node %i\n", ret);
 
+
+/*
   dev_info(dev, "Getting range infos\n");
 
   of_bar_remap(data->pci_dev, 2, 0, val[0]);
@@ -252,11 +256,13 @@ static int hero_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id) 
   of_changeset_add_prop_u32_array(&data->of_cs, data->dev->of_node, "ranges", (const u32 *)val,
                                   ARRAY_SIZE(val) * ARRAY_SIZE(val[0]));
   of_changeset_apply(&data->of_cs);
+*/
 
   dev_info(dev, "Populating platform %p\n", data->dev->of_node);
 
   ret = of_platform_default_populate(data->dev->of_node, NULL, data->dev);
   if (ret) dev_err(dev, "oops of_platform_default_populate %i\n", ret);
+  else data->populated = 1;
 
   dev_info(dev, "Done\n");
 
@@ -273,7 +279,7 @@ static void hero_pci_remove(struct pci_dev *pdev) {
 
   if (data->dtb_blob) kfree(data->dtb_blob);
 
-  of_platform_depopulate(data->dev);
+  if (data->populated) of_platform_depopulate(data->dev);
 
   if (data->ovcs_id > 0) of_overlay_remove(&data->ovcs_id);
 

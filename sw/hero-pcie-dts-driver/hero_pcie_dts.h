@@ -28,7 +28,7 @@
 
 #define SPM_OFFSET   0x70000000UL
 
-#define DTB_OFFSET   SPM_OFFSET + 0
+#define DTB_OFFSET   HBM_0_OFFSET + 0
 #define DTB_MAGIC    0xd00dfeed
 // Arbitrary allow 10KiB to map were the DTB is written
 #define DTB_MAP_SIZE 1024 * 10

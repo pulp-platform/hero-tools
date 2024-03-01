@@ -1,152 +1,120 @@
-ROOT := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-TARGET_HOST  = riscv64-hero-linux-gnu
-TARGET_DEV   = riscv32-snitch-unknown-elf
-REPO_ROOT    = ../../../..
-SNRT_INSTALL = ../snruntime
+# Copyright 2023 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Cyril Koenig <cykoenig@iis.ee.ethz.ch>
 
-ifndef HERO_INSTALL
-$(error HERO_INSTALL is not set)
-endif
-
-
-### NEW STUFF
-BR_OUTPUT_DIR ?= $(realpath ../../../../cva6-sdk/buildroot/output/)
+# Buildroot contains the GCC toolchain
+BR_OUTPUT_DIR ?= $(realpath $(ROOT)/cva6-sdk/buildroot/output/)
 RISCV          = $(BR_OUTPUT_DIR)/host
 RV64_SYSROOT   = $(RISCV)/riscv64-buildroot-linux-gnu/sysroot
-CFLAGS        += --gcc-toolchain=$(RISCV) --sysroot=$(RV64_SYSROOT)
 
-SNITCH_DIR  = /scratch2/cykoenig/tmp/snitch_tmp
-RUNTIME_DIR = $(SNITCH_DIR)/hw/system/occamy/sw/device/runtime
-SNRT_DIR    = $(SNITCH_DIR)/sw/snRuntime
-SW_DIR      = $(SNITCH_DIR)/hw/system/occamy/sw
-###
+# Makefile hacks
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
 
-# RV64_INSTALL   = /home/huettern/git/ariane-sdk/install
-# RV64_INSTALL   = /home/huettern/git/riscv-gnu-toolchain/install
-# RV64_INSTALL   = /home/huettern/git/ariane-sdk-gcc11/buildroot/output/host
-
-# RV64_SYSROOT   = $(RV64_INSTALL)/riscv64-hero-linux-gnu/sysroot
-# RV64_SYSROOT   = $(HERO_INSTALL)/riscv64-hero-linux-gnu/sysroot
-# RV64_SYSROOT   = $(RV64_INSTALL)/sysroot
-# RV64_SYSROOT   = /home/huettern/git/ariane-sdk-gcc11/buildroot/output/host
-# RV64_SYSROOT   = /home/huettern/git/ariane-sdk-gcc11/buildroot/output/host/riscv64-hero-linux-gnu/sysroot
-# RV64_SYSROOT   = /home/huettern/git/ariane-sdk/buildroot/output/host
-# RV64_SYSROOT   = /home/huettern/git/ariane-sdk-gcc11/buildroot/output/host/lib/gcc
-# RV64_LIBPATH   = -L/home/huettern/git/ariane-sdk-gcc11/buildroot/output/host/riscv64-hero-linux-gnu/sysroot/usr/lib
-
-
-# Toolchain
-LLVM_INSTALL = $(HERO_INSTALL)
-CC := $(LLVM_INSTALL)/bin/clang
-LINK := $(LLVM_INSTALL)/bin/llvm-link
-COB := $(LLVM_INSTALL)/bin/clang-offload-bundler
-DIS := $(LLVM_INSTALL)/bin/llvm-dis
-HOP := $(HERO_INSTALL)/bin/hc-omp-pass
-GCC := $(HERO_INSTALL)/bin/$(TARGET_HOST)-gcc
-
-ARCH_HOST = host-$(TARGET_HOST)
-ARCH_DEV = openmp-$(TARGET_DEV)
-
+# Binaries
+LLVM_INSTALL := $(HERO_INSTALL)
+CC   := $(HERO_INSTALL)/bin/clang
+LINK := $(HERO_INSTALL)/bin/ld.lld
+COB  := $(HERO_INSTALL)/bin/clang-offload-bundler
+DIS  := $(HERO_INSTALL)/bin/llvm-dis
+HOP  := $(HERO_INSTALL)/bin/hc-omp-pass
+GCC  := $(HERO_INSTALL)/bin/$(TARGET_HOST)-gcc
 HOST_OBJDUMP := $(RISCV)/bin/riscv64-buildroot-linux-gnu-objdump
-DEV_OBJDUMP := $(LLVM_INSTALL)/bin/llvm-objdump --mcpu=snitch
+DEV_OBJDUMP  := $(HERO_INSTALL)/bin/llvm-objdump
 
-opt = 0
-# compilation debug
-#debug = -v -debug -save-temps=obj
+# Flags
+COB_TARGETS = $(subst $(space),$(comma),host-$(TARGET_HOST) $(foreach target,$(TARGET_DEVS),openmp-$(target)))
 
-.DEFAULT_GOAL = all
+# Toolchain(s) selection
+CFLAGS   += --gcc-toolchain=$(RISCV) --sysroot=$(RV64_SYSROOT)
+CFLAGS   += -target $(TARGET_HOST)
+CFLAGS   += -fopenmp=libomp -fopenmp-targets=$(subst $(space),$(comma),$(foreach target,$(TARGET_DEVS),$(target)))
+# Include files used by the OpenMP target RTL
+CFLAGS   += -I$(ROOT)/sw/libhero/include
+CFLAGS   += -I$(ROOT)/apps/occamy/omp/common
+# Dependancy managements
+DEPDIR   := .deps
+CFLAGS   += -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-# CFLAGS and LDFLAGS have three components/stages
-# 1) without suffix, they apply to heterogeneous compilation;
-# 3) with _PULP suffix, they apply only to the PULP part of compilation;
-# 4) with _COMMON suffix, they apply to both PULP and host compilation.
-CFLAGS_COMMON += $(cflags) -O$(opt)
-CFLAGS_COMMON += -g
-CFLAGS_PULP += $(CFLAGS_COMMON) -target $(TARGET_DEV) -I$(HERO_PULP_INC_DIR)
-CFLAGS += -target $(TARGET_HOST) $(CFLAGS_COMMON)
-CFLAGS_COMMON += -fopenmp=libomp
-CFLAGS += -fopenmp-targets=$(TARGET_DEV)
-LDFLAGS_COMMON ?= $(ldflags)
-LDFLAGS_PULP += $(LDFLAGS_COMMON)
-LDFLAGS += $(LDFLAGS_COMMON) -L$(REPO_ROOT)/support/libomp/lib
-
-# TODO: Implement libherotarget for snitch
-# LDFLAGS += -lhero-target
-# ifeq ($(TARGET_HOST),riscv64-hero-linux-gnu)
-# 	# FIXME: we explicitly need to embed the correct linker for riscv
-# 	LDFLAGS += -Wl,-dynamic-linker,/lib/ld-linux-riscv64-lp64.so.1
-# endif
-
-INCPATHS += -I$(REPO_ROOT)/support/libhero-target/inc
-INCPATHS += -I$(ROOT) -include hero_64.h
-LIBPATHS += $(RV64_LIBPATH)
-LIBPATHS ?=
+# Link flags
+LDFLAGS  += --ld-path=$(RISCV)/bin/riscv64-buildroot-linux-gnu-ld 
+# Path to the OpenMP target RTL
+LDFLAGS  += -L$(ROOT)/sw/libomp/lib
 
 APP = $(shell basename `pwd`)
 EXE = $(APP)
-SRC = $(CSRCS)
+# Objects for each host/devices
+COBJS_UNBUNDLED = $(foreach dev,host $(DEVS),$(patsubst %.c, %-$(dev).ll, $(CSRCS)))
+# Unique object after bundling host/devices together
+COBJS_BUNDLED = $(patsubst %.c, %-out.ll, $(CSRCS))
 
-DEPDIR := .deps
-DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+# Targets
+all: $(DEPS) $(EXE)
 
-AS_ANNOTATE_ARGS ?=
-
-.PHONY: all exe clean
-.PRECIOUS: %.ll
-
-all: $(DEPS) $(EXE) $(EXE).dis $(EXE).snitch.dis
-
-import_sn:
-	mkdir -p $(SNRT_INSTALL)/include $(SNRT_INSTALL)/lib/
-	find /scratch2/cykoenig/development/snitch/sw/snRuntime/ -name "*.h" | xargs -I{} cp {} $(SNRT_INSTALL)/include
-	find /scratch2/cykoenig/development/occamy/target/sim/sw/shared -name "*.h" | xargs -I{} cp {} $(SNRT_INSTALL)/include
-	find /scratch2/cykoenig/development/occamy/target/sim/sw/device -name "*.h" | xargs -I{} cp {} $(SNRT_INSTALL)/include
-	cp /scratch2/cykoenig/development/occamy/target/sim/sw/hero/runtime/build/libsnRuntime-hero.a $(SNRT_INSTALL)/lib/
-	cp /scratch2/cykoenig/development/snitch/sw/snRuntime/base.ld $(SNRT_INSTALL)/lib/common.ld
-	cp /scratch2/cykoenig/development/occamy/target/sim/sw/hero/runtime/memory.ld $(SNRT_INSTALL)/lib/memory.ld
-
-# Compile heterogeneous source and split into host/device .ll
+# Compile heterogeneous C source and get a bundled .ll
 %.ll: %.c $(DEPDIR)/%.d | $(DEPDIR)
-	@echo "CC     <= $< $@"
-	echo "SNRT_INSTALL=$(SNRT_INSTALL) $(CC) $(debug) -c -emit-llvm -S $(DEPFLAGS) $(CFLAGS) $(INCPATHS) $<"
-	SNRT_INSTALL=$(SNRT_INSTALL) $(CC) $(debug) -c -emit-llvm -S $(DEPFLAGS) $(CFLAGS) $(INCPATHS) $<
-	@echo "COB    <= $< $@"
-	@$(COB) -inputs=$@ -outputs="$(<:.c=-host.ll),$(<:.c=-dev.ll)" -type=ll -targets="$(ARCH_HOST),$(ARCH_DEV)" -unbundle
+	@echo "CC     <= $<"
+	$(CC) $(debug) -c -emit-llvm -S $(DEPFLAGS) $(CFLAGS) $<
 
-.PRECIOUS: %-dev.OMP.ll
-%-dev.OMP.ll: %.ll
-	@echo "HOP    <= $< $@"
-	@cp $(<:.ll=-dev.ll) $(@:.OMP.ll=.TMP.1.ll)
-	@LLVM_INSTALL=$(LLVM_INSTALL)/ $(HOP) $(@:.OMP.ll=.TMP.1.ll) OmpKernelWrapper "HERCULES-omp-kernel-wrapper" $(@:.OMP.ll=.TMP.2.ll)
-	@LLVM_INSTALL=$(LLVM_INSTALL)/ $(HOP) $(@:.OMP.ll=.TMP.2.ll) OmpHostPointerLegalizer "HERCULES-omp-host-pointer-legalizer" $(@:.OMP.ll=.TMP.3.ll)
-	@cp $(@:.OMP.ll=.TMP.3.ll) $@
+# De-bundle %-host.ll and %-heroX.ll
+# Note: We need to replace spaces by comma in COB_OUTPUTS
+%-host.ll: %.ll
+	@echo "COB    <= $<"
+	@COB_OUTPUTS="$(foreach tgt,host $(DEVS),$(<:.ll=-$(tgt).ll))"; \
+	COB_CMD="$(COB) -inputs=$< -outputs=\"$${COB_OUTPUTS// /,}\" -type=ll -targets=\"$(COB_TARGETS)\" -unbundle" ; \
+	echo $$COB_CMD; \
+	eval $$COB_CMD
 
-.PRECIOUS: %-host.OMP.ll
-%-host.OMP.ll: %.ll
-	@echo "HOP    <= $< $@"
-	@LLVM_INSTALL=$(LLVM_INSTALL)/ $(HOP) $(<:.ll=-host.ll) OmpKernelWrapper "HERCULES-omp-kernel-wrapper" $(@:.OMP.ll=.TMP.1.ll)
+# Create dependance to %-host.ll for all %-heroX.ll (all created by the rule above)
+define add_host_dep =
+$(foreach tgt-dev,$(DEVS),$(patsubst %-host.ll, %-$(tgt-dev).ll, $(1))): $(1)
+endef
+# Call add_cob_dep for all %-host.ll objects
+$(foreach host-obj, $(patsubst %.c, %-host.ll, $(CSRCS)), $(eval $(call add_host_dep,$(host-obj))))
+
+# Different custom LLVMs passes to be applied on host regions
+%-host.OMP.ll: %-host.ll
+	echo "there"
+	@echo "HOP    <= $<"
+	@LLVM_INSTALL=$(HERO_INSTALL)/ $(HOP) $(<) OmpKernelWrapper "HERCULES-omp-kernel-wrapper" $(@:.OMP.ll=.TMP.1.ll)
 	@cp $(@:.OMP.ll=.TMP.1.ll) $@
 
-%-out.ll: %-host.OMP.ll %-dev.OMP.ll
-	@echo "COB    <= <= $< $@"
-	@$(COB) -inputs="$(@:-out.ll=-host.OMP.ll),$(@:-out.ll=-dev.OMP.ll)" -outputs=$@ -type=ll -targets="$(ARCH_HOST),$(ARCH_DEV)"
+# Different custom LLVMs passes to be applied on devices regions
+%.OMP.ll: %.ll
+	echo "here"
+	@echo "HOP    <= $<"
+	@LLVM_INSTALL=$(HERO_INSTALL) $(HOP) $(<) OmpKernelWrapper "HERCULES-omp-kernel-wrapper" $(@:.OMP.ll=.TMP.1.ll)
+	@LLVM_INSTALL=$(HERO_INSTALL) $(HOP) $(@:.OMP.ll=.TMP.1.ll) OmpHostPointerLegalizer "HERCULES-omp-host-pointer-legalizer" $(@:.OMP.ll=.TMP.2.ll)
+	@cp $(@:.OMP.ll=.TMP.2.ll) $@
 
-exeobjs := $(patsubst %.c, %-out.ll, $(SRC))
-$(EXE): $(exeobjs)
+# Use COB to re-gather all the targets.OMP.ll into a unique output
+%-out.ll: $(foreach dev,host $(DEVS),%-$(dev).OMP.ll)
+	@echo "COB    <= $<"
+	@COB_INPUTS="$(foreach dev,host $(DEVS),$(<:-host.OMP.ll=-$(dev).OMP.ll))"; \
+	COB_CMD="$(COB) -inputs=\"$${COB_INPUTS// /,}\" -outputs=$@ -type=ll -targets=\"$(COB_TARGETS)\""; \
+	echo $$COB_CMD; \
+	eval $$COB_CMD
+
+# Link the final application
+$(EXE): $(COBJS_BUNDLED)
 	@echo "CCLD   <= $<"
-	SNRT_INSTALL=$(SNRT_INSTALL) $(CC) $(debug) $(LIBPATHS) $(CFLAGS) $(exeobjs) $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS) $(COBJS_BUNDLED) $(LDFLAGS) -v -o $@
 	echo "done"
 
+# Objdump
 $(EXE).dis: $(EXE)
 	@echo "OBJDUMP <= $<"
 	@$(HOST_OBJDUMP) -d $^ > $@
 
 # $<.rodata_off in the skip argument to `dd` is the offset of the first section in the ELF file
 # determined by readelf -S $(EXE).
-$(EXE).snitch.dis: $(EXE)
+$(EXE).dev.dis: $(EXE)
 	@echo "OBJDUMP (device) <= $<"
 	@llvm-readelf -S $(EXE) | grep '.rodata' | awk '{print "echo $$[0x"$$4" - 0x"$$5"]"}' | bash > $<.rodata_off
-	@llvm-readelf -s $^ | grep '\s\.omp_offloading.device_image\>' \
+	@llvm-readelf -S $^ | grep '\s\.omp_offloading.device_image\>' \
 			| awk '{print "dd if=$^ of=$^_riscv.elf bs=1 count=" $$3 " skip=$$[0x" $$2 " - $$(< $<.rodata_off)]"}' \
 			| bash \
 			&& $(DEV_OBJDUMP) -S $^_riscv.elf > $@
@@ -161,16 +129,24 @@ $(DEPFILES):
 include $(wildcard $(DEPFILES))
 
 # Phony
-clean::
+clean:
 	-rm -vf __hmpp* $(EXE) *~ *.bc *.dis *.elf *.i *.lh *.lk *.ll *.o *.s *.slm a.out*
 	-rm -rvf $(DEPDIR)
 	-rm -vf *-host-llvm *-host-gnu
 
-.PHONY: deploy
-deploy: $(EXE)
+.PHONY: upload
+upload: $(EXE)
 	[ "${DEPLOY_FILES}" ] && scp ${DEPLOY_FILES} root@hero-vcu128-02.ee.ethz.ch:/root || echo "Sending only binary..."
-	rsync -aP $? root@172.31.182.94:/root
+	scp $? root@172.31.182.94:/root
 
 .PHONY: install
 install: $(EXE)
-	cp $? $(REPO_ROOT)/board/common/overlay/root
+	cp $? $(ROOT)/board/common/overlay/root
+
+ifndef HERO_INSTALL
+$(error HERO_INSTALL is not set)
+endif
+
+ifndef OCCAMY_ROOT
+$(error OCCAMY_ROOT is not set)
+endif

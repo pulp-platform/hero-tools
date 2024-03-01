@@ -34,17 +34,20 @@ LLVM_COMPILE_FLAGS= \
 	-DLLVM_TARGETS_TO_BUILD=RISCV \
 	-DLLVM_TARGET_ARCH=riscv64 \
 	-DLLVM_ENABLE_ASSERTIONS=OFF \
-	-LLVM_INCLUDE_TESTS=OFF
+	-DLLVM_BUILD_TOOLS=OFF \
+	-DLLVM_INCLUDE_TESTS=OFF
 
 all: compile
 
 configure:
-	CC=$(CC) CXX=$(CXX) cmake $(LLVM_COMPILE_FLAGS) -G Ninja ../../toolchain/llvm-project/llvm
+	CC=$(CC) CXX=$(CXX) LLVM_BUILD_TOOLS=OFF cmake $(LLVM_COMPILE_FLAGS) -G Ninja ../../toolchain/llvm-project/llvm
 
 build.ninja: configure
 
 compile: build.ninja
 	ninja -j `nproc`
+# Bin takes a lost of space for nothing
+	rm -rf bin
 
 # Clean everything but Makefile and gitignore
 clean:

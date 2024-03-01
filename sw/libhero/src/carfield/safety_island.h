@@ -1,6 +1,7 @@
-#pragma once
+#ifndef SAFETY_ISLAND_H__
+#define SAFETY_ISLAND_H__
 
-#include "util.h"
+#include "libhero/util.h"
 
 // soc_ctrl
 #define CARFIELD_SAFETY_ISLAND_RST_OFFSET 0x28
@@ -18,13 +19,19 @@
 int device_fd;
 
 // The virtual addresses of the hardware
-static volatile void* car_soc_ctrl;
-static volatile void* chs_ctrl_regs;
-static volatile void* car_safety_island;
-static volatile void* car_l2_intl_0;
-static volatile void* car_l2_cont_0;
-static volatile void* car_l2_intl_1;
-static volatile void* car_l2_cont_1;
+volatile void* car_soc_ctrl;
+volatile void* chs_ctrl_regs;
+volatile void* chs_idma;
+volatile void* car_safety_island;
+volatile void* car_l2_intl_0;
+volatile void* car_l2_cont_0;
+volatile void* car_l2_intl_1;
+volatile void* car_l2_cont_1;
+volatile void* car_l3;
+
+// Physical addresses
+uintptr_t             car_pcie_axi_bar_phys;
+
 
 void car_set_isolate(uint32_t status)
 {
@@ -35,3 +42,4 @@ void car_set_isolate(uint32_t status)
 	;
 }
 
+#endif // SAFETY_ISLAND_H__
