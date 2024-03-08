@@ -6,7 +6,7 @@ TARGET_DEVS := $(foreach dev,$(DEVS),riscv32-hero-$(dev)-elf)
 
 CSRCS = helloworld_spatz.c
 
-CFLAGS   += -O3
+CFLAGS   += -O3 -g
 CFLAGS   += -v -debug -save-temps=obj
 
 ### HOST ###
@@ -15,7 +15,7 @@ LDFLAGS  += -L$(ROOT)/sw/libhero/lib -lhero_spatz_cluster
 
 ### DEVICE 1 ###
 
-CFLAGS   += --hero1-sysroot=$(HERO_INSTALL)/rv32imafd-ilp32d/riscv32-unknown-elf
+CFLAGS   += --hero1-sysroot=$(HERO_INSTALL)/rv32imafdvzfh-ilp32d/riscv32-unknown-elf
 CFLAGS   += -hero1-march=rv32imafdvzfh_xdma
 CFLAGS   += -hero1-D__HERO_1 -hero1-D__HERO_DEV
 

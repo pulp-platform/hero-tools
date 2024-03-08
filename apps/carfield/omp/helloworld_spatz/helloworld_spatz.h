@@ -1,3 +1,7 @@
+// Remove host functions
+#define hero_add_timestamp(A, B, C) ;
+
+
 // 16-bit dot-product: a * b
 _Float16 fdotp_v16b(const _Float16 *a, const _Float16 *b, unsigned int avl) {
   const unsigned int orig_avl = avl;

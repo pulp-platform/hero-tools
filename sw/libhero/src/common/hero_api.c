@@ -9,15 +9,70 @@
 #include "libhero/ringbuf.h"
 #include "libhero/io.h"
 
+// Open trace file
+#include <sys/fcntl.h>
+
 #include <stdint.h>
+#include <time.h>
+
+int libhero_log_level = LOG_MIN;
 
 // Stucture containing the *device* L2 and L3 allocator
 struct O1HeapInstance *l2_heap_manager, *l3_heap_manager;
 uintptr_t l2_heap_start_phy, l2_heap_start_virt;
 size_t l2_heap_size;
 uintptr_t l3_heap_start_phy, l3_heap_start_virt;
-int libhero_log_level = LOG_MAX;
 size_t l3_heap_size;
+
+struct hero_timestamp time_list[MAX_TIMESTAMPS];
+int hero_num_time_list = 0;
+int hero_num_device_cycles;
+uint32_t hero_device_cycles[MAX_TIMESTAMPS];
+
+int hero_marker_fd;
+
+static void sub_timespec(struct timespec t1, struct timespec t2, struct timespec *td) {
+    td->tv_nsec = t2.tv_nsec - t1.tv_nsec;
+    td->tv_sec = t2.tv_sec - t1.tv_sec;
+    if (td->tv_sec > 0 && td->tv_nsec < 0) {
+        td->tv_nsec += NS_PER_SECOND;
+        td->tv_sec--;
+    } else if (td->tv_sec < 0 && td->tv_nsec > 0) {
+        td->tv_nsec -= NS_PER_SECOND;
+        td->tv_sec++;
+    }
+}
+
+void hero_add_timestamp(char str_info[32], char str_func[32], int add_to_ftrace) {
+    if (hero_num_time_list >= MAX_TIMESTAMPS) {
+        printf("%s : Max timestamps\n\r", __func__);
+        return;
+    }
+    if (!hero_marker_fd) {
+        hero_marker_fd = open("/sys/kernel/tracing/trace_marker", O_WRONLY);
+    }
+#if HERO_TIMESTAMP_MODE == 0
+    asm volatile ("csrr %0,cycle"   : "=r" (time_list[hero_num_time_list].cycle));
+#elif HERO_TIMESTAMP_MODE == 1
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_list[hero_num_time_list].timespec);
+#endif
+    memcpy(time_list[hero_num_time_list].str_info, str_info, 32 * sizeof(char));
+    memcpy(time_list[hero_num_time_list].str_func, str_func, 32 * sizeof(char));
+    // Add to ftrace to compare with context switch
+    if(add_to_ftrace)
+        write(hero_marker_fd, str_info, 32);
+    hero_num_time_list++;
+}
+
+void hero_print_timestamp() {
+    for(int i = 0; i < hero_num_time_list; i++) {
+#if HERO_TIMESTAMP_MODE == 0
+        printf("%s %s %lu %lu\n", time_list[i].str_info, time_list[i].str_func, time_list[i].cycle, (i<hero_num_time_list-1) ? time_list[i+1].cycle - time_list[i].cycle : 0);
+#elif HERO_TIMESTAMP_MODE == 1
+        printf("%s %s %d.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec);
+#endif
+    }
+}
 
 // ----------------------------------------------------------------------------
 //
@@ -68,11 +123,16 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
     int ret, retry = 0;
     while (n_words--) {
         do {
+            // If this region is cached, need a fence
+            asm volatile ("fence");
             ret = rb_host_get(dev->mboxes.a2h_mbox, &buffer[n_words]);
             if (ret) {
                 if (++retry == 100)
                     pr_warn("high retry on mbox read()\n");
-                usleep(10000);
+                // For now avoid sleep that creates context switch
+                for(int i = 0; i < 100; i++) {
+                    asm volatile ("nop");
+                }
             }
         } while (ret);
     }
@@ -83,11 +143,16 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
 int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
     int ret, retry = 0;
     do {
+        // If this region is cached, need a fence
+        asm volatile ("fence");
         ret = rb_host_put(dev->mboxes.h2a_mbox, &word);
         if (ret) {
             if (++retry == 100)
                 pr_warn("high retry on mbox write()\n");
-        usleep(10000);
+            // For now avoid sleep that creates context switch
+            for(int i = 0; i < 100; i++) {
+                asm volatile ("nop");
+            }
         }
     } while (ret);
     

@@ -162,9 +162,8 @@ hero-spatz-boot: $(HERO_CVA6_SDK_DIR)/install64/vmlinux
 # Safety Island SW #
 ####################
 
-$(HERO_SAFETY_ROOT)/sw/tests/runtime_omp/build/libomptarget_runtime.a: $(HERO_SPATZ_ROOT) $(HERO_SAFETY_ROOT) FORCE
-	source $(HERO_SAFETY_ROOT)/env/env_carfield.sh
-	riscv -pulp-gcc-2.6.0 make -C $(HERO_SAFETY_ROOT)/sw/tests/runtime_omp archive_app
+$(HERO_SAFETY_ROOT)/sw/tests/runtime_omp/build/libomptarget_runtime.a: $(HERO_SAFETY_ROOT)/Bender.yml FORCE
+	bash -c "source $(HERO_SAFETY_ROOT)/env/env_carfield.sh ; riscv -pulp-gcc-2.6.0 make -C $(HERO_SAFETY_ROOT)/sw/tests/runtime_omp archive_app"
 
 hero-safety-sw-all: $(HERO_SAFETY_ROOT)/sw/tests/runtime_omp/build/libomptarget_runtime.a
 

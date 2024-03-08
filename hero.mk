@@ -77,7 +77,7 @@ $(eval $(call hero_devs_build_newlib,rv32ima,ilp32))
 $(eval $(call hero_devs_build_newlib,rv32imafd,ilp32d))
 $(eval $(call hero_devs_build_newlib,rv32imafdvzfh,ilp32d))
 
-hero-tc-llvm: $(HERO_INSTALL)/bin/clang
+hero-tc-llvm: $(HERO_INSTALL)/bin/clang $(HERO_DEVS_NEWLIB)
 hero-tc-llvm-artifacts: hero-load-artifacts-tc-llvm $(HERO_INSTALL)/bin/clang $(HERO_DEVS_NEWLIB) hero-save-artifacts-tc-llvm
     # $(HERO_DEVS_NEWLIB) should be more recent than clang for GNU Make
 	touch $(HERO_DEVS_NEWLIB)

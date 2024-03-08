@@ -63,13 +63,17 @@ int carfield_lookup_mmap(int device_fd, int mmap_id, void **res) {
 
 void hero_dev_reset(HeroDev *dev, unsigned full) {
     int err;
-    pr_trace("%s spatz_cluster\n", __func__);
     // Isolate
     car_set_isolate(1);
     fence();
     // Disable clock
     writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence();
+    // Disable IRQs
+    writew(0, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_EN);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_CLR);
+    writew(0, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_EN);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_CLR);
     // Reset and de-reset
     writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
     fence();
@@ -184,6 +188,13 @@ int hero_dev_mmap(HeroDev *dev) {
         pr_error("Error when initializing L3 mem.\n");
         goto end;
     }
+    //l2_mems_tail->v_addr = car_l3;
+    //// TODO: Split lookup between device and host phy addr
+    //l2_mems_tail->p_addr = 0xFFFFFFFF & car_l3_phys;
+    //l2_mems_tail->size   = car_l3_size / 2;
+    //l2_mems_tail->alias  = "l3";
+    //l2_mems_tail->next   = NULL;
+    //dev->global_mems = l2_mems_tail;
 
     goto end;
 error_driver:
@@ -245,8 +256,8 @@ void hero_dev_exe_start(HeroDev *dev) {
 
     writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_EN);
     writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_SET);
-    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_RCV_EN);
-    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_RCV_SET);
+    //writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_EN);
+    //writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_SET);
 }
 
 int hero_dev_init(HeroDev *dev) {

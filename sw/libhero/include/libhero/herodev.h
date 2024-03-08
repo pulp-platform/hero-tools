@@ -48,6 +48,37 @@
 #endif
 
 /*
+* Timing
+*/
+
+#include <time.h>
+
+// Statically allocate timestamps for timing
+#define MAX_TIMESTAMPS 1024
+enum { NS_PER_SECOND = 1000000000 };
+
+struct hero_timestamp {
+  struct timespec timespec;
+  uint64_t cycle;
+  char str_info[32];
+  char str_func[32];
+  struct hero_timestamp* next;
+};
+
+// 0 = CSR cycle ; 1 = linux cputime
+#define HERO_TIMESTAMP_MODE 0
+
+// Host timestamps
+extern int hero_num_time_list;
+extern struct hero_timestamp time_list[MAX_TIMESTAMPS];
+// Device cycles (returned by device runtime)
+extern int hero_num_device_cycles;
+extern uint32_t hero_device_cycles[MAX_TIMESTAMPS];
+
+void hero_add_timestamp(char str_info[32], char str_func[32], int add_to_trace);
+void hero_print_timestamp();
+
+/*
  * Defines
  */
 // Include defines shared between kernel and userspace
