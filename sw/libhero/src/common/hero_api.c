@@ -65,13 +65,16 @@ void hero_add_timestamp(char str_info[32], char str_func[32], int add_to_ftrace)
 }
 
 void hero_print_timestamp() {
-    for(int i = 0; i < hero_num_time_list; i++) {
 #if HERO_TIMESTAMP_MODE == 0
+    printf("info function cycle diff\n");
+    for(int i = 0; i < hero_num_time_list; i++) {
         printf("%s %s %lu %lu\n", time_list[i].str_info, time_list[i].str_func, time_list[i].cycle, (i<hero_num_time_list-1) ? time_list[i+1].cycle - time_list[i].cycle : 0);
-#elif HERO_TIMESTAMP_MODE == 1
-        printf("%s %s %d.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec);
-#endif
     }
+#elif HERO_TIMESTAMP_MODE == 1
+    for(int i = 0; i < hero_num_time_list; i++) {
+        printf("%s %s %d.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec);
+    }
+#endif
 }
 
 // ----------------------------------------------------------------------------

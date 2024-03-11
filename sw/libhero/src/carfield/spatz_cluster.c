@@ -148,7 +148,7 @@ int hero_dev_mmap(HeroDev *dev) {
     // Put half of the l2_intl_1 memory map in the global_mems list
     // (We give the first half to openmp and the top half to o1heap)
     size_t car_l2_size; 
-    uintptr_t car_l2_phys; 
+    uintptr_t car_l2_phys;
     carfield_lookup_mem(device_fd, L2_INTL_0_MMAP_ID, &car_l2_size, &car_l2_phys);
     HeroSubDev_t *l2_mems_tail = malloc(sizeof(HeroSubDev_t));
     if(!l2_mems_tail){
@@ -256,8 +256,8 @@ void hero_dev_exe_start(HeroDev *dev) {
 
     writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_EN);
     writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_SET);
-    //writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_EN);
-    //writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_SET);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_EN);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_SET);
 }
 
 int hero_dev_init(HeroDev *dev) {

@@ -175,10 +175,10 @@ hero-safety-sw-clean:
 # Spatz SW #
 ############
 
-$(HERO_SPATZ_ROOT)/sw/hero/device/runtime/build/libsnRuntime.a: $(HERO_SPATZ_ROOT) FORCE
+$(HERO_SPATZ_ROOT)/sw/hero/device/runtime/build/libsnRuntime.a: $(HERO_SPATZ_ROOT)/Bender.yml $(HERO_SPATZ_ROOT) FORCE
 	make -C $(HERO_SPATZ_ROOT)/sw/hero/device/runtime all
 
-$(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device/build/libomptarget_device.a: $(HERO_SPATZ_ROOT) $(HERO_SPATZ_ROOT)/sw/hero/device/runtime/build/libsnRuntime.a FORCE
+$(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device/build/libomptarget_device.a: $(HERO_SPATZ_ROOT)/sw/hero/device/runtime/build/libsnRuntime.a FORCE
 	make -C $(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device all
 
 hero-spatz-sw-all: $(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device/build/libomptarget_device.a

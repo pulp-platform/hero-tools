@@ -20,10 +20,6 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
-#include <llvm/Transforms/IPO/OpenMPOpt.h>
-
-#include <llvm/Support/Debug.h>
-
 #include <array>
 
 #define OMP_WRAPPER_PREFIX "__wrapper_omp"
@@ -92,8 +88,6 @@ void setOmpOffloadFunction(GlobalVariable *offloadingEntry,
 void OmpKernelWrapper::getAnalysisUsage(AnalysisUsage &AU) const {}
 
 bool OmpKernelWrapper::runOnModule(Module &M) {
-  errs() << "Starting pass OmpKernelWrapper\n";
-  errs() << "Target triple is " << M.getTargetTriple() << "\n";
   // Workaround to convert arg_sizes arrays from i32* to i64*
   if (M.getTargetTriple() == "armv6kz-unknown-linux-gnueabihf") {
     this->changeTypeOfArgSizes(M, "__tgt_target_data_begin", 4);
@@ -253,8 +247,6 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
   } else {
     HostAS = 0;
   }
-
-
   Type *rawArgTy = Type::getInt64Ty(M.getContext());
   Type *argTy = Type::getInt64Ty(M.getContext())->getPointerTo(HostAS);
   Type *voidTy = Type::getVoidTy(M.getContext());
@@ -270,7 +262,6 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
     Function *wrapper =
         Function::Create(wrapperTy, Function::WeakAnyLinkage,
                          OMP_WRAPPER_PREFIX + kernel->getName(), &M);
-
 
     // begin building body of wrapper function
     IRBuilder<> builder(M.getContext());
@@ -297,7 +288,6 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
       // load parameter
       Value *param = builder.CreateLoad(paramType, paramPtr);
       derefArgs.push_back(param);
-
     }
 
     // Call original kernel, finish function
@@ -311,7 +301,6 @@ void OmpKernelWrapper::wrapOmpKernels(Module &M) {
     kernel->setName(OMP_WRAPPED_PREFIX + oldName);
     wrapper->setName(oldName);
   }
-
 }
 
 // Find OMP kernels and wrap list of T* args to single void** arg:

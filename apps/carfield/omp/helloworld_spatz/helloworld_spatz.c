@@ -15,8 +15,6 @@
 
 int main(int argc, char *argv[]) {
 
-    printf("cva6 main()\n");
-
     uint32_t tmp_1;
     uint32_t tmp_2;
 

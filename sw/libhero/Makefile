@@ -30,7 +30,7 @@ SRCS_occamy := src/occamy/snitch_cluster.c
 
 # Final variables
 CFLAGS := $(CFLAGS_$(PLATFORM))
-CFLAGS := $(CFLAGS) -Wall -O0 -g -fPIC -DPLATFORM=$(PLATFORM) -DLINUX_APP
+CFLAGS := $(CFLAGS) -Wall -O3 -g -fPIC -DPLATFORM=$(PLATFORM) -DLINUX_APP
 CFLAGS := $(CFLAGS) -Iinclude -Isrc/common -Ivendor/o1heap/o1heap
 
 SRCS   := $(SRCS_$(PLATFORM)) src/common/hero_api.c vendor/o1heap/o1heap/o1heap.c

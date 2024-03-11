@@ -75,6 +75,18 @@ all-sw:
       - sw/libhero/lib/
       - sw/libhero/include
 
+linux:
+  stage: sw
+  needs: [ gcc ]
+  before_script:
+    - source scripts/setenv.sh
+  script:
+    - make hero-cva6-sdk-all
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - cva6-sdk/install64
+
 safety_island_apps:
   stage: apps
   needs: [ init, gcc, llvm, all-sw ]
@@ -90,11 +102,10 @@ spatz_apps:
   needs: [ init, gcc, llvm, all-sw ]
   before_script:
     - source scripts/setenv.sh
-    - export SPATZ_ROOT=$CI_PROJECT_DIR/platforms/occamy/carfield/spatz
+    - export SPATZ_ROOT=$CI_PROJECT_DIR/platforms/carfield/spatz
   script:
-    - make $SPATZ_ROOT
-    - make -C $SPATZ_ROOT vendor/snitch
-    - make -C $SPATZ_ROOT/sw/hero/device/runtime all
+    - make hero-spatz-sw-all
+    - make -C apps/carfield/omp/helloworld_spatz all
 
 occamy_apps:
   stage: apps
@@ -108,7 +119,7 @@ occamy_apps:
 
 occamy_bit:
   stage: bitstreams
-  needs: [ init ]
+  needs: [ init, gcc ]
   before_script:
     - source scripts/setenv.sh
   script:
