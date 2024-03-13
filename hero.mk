@@ -26,28 +26,34 @@ HERO_CVA6_SDK_DIR := $(HERO_ROOT)/cva6-sdk
 # Outputs of cva6-sdk/buildroot
 HERO_BR_OUTPUT_DIR := $(realpath $(HERO_CVA6_SDK_DIR)/buildroot/output/)
 HERO_LINUX_CROSS_COMPILE := $(HERO_BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu-
-HERO_KERNEL_DIR    := $(HERO_BR_OUTPUT_DIR)/build/linux-5.16.9
+HERO_KERNEL_DIR    := $(HERO_BR_OUTPUT_DIR)/build/linux-6.1.22
 
 HERO_ARTIFACTS_ROOT_tc-gcc := $(HERO_ARTIFACTS_ROOT)/tc_gcc
-HERO_ARTIFACTS_DATA_tc-gcc := $(HERO_CVA6_SDK_DIR)/buildroot/output/host
-HERO_ARTIFACTS_VARS_tc-gcc :=
+HERO_ARTIFACTS_DATA_tc-gcc := $(HERO_BR_OUTPUT_DIR)/host
+HERO_ARTIFACTS_VARS_tc-gcc := $(CC) $(CXX)
 HERO_ARTIFACTS_FILES_tc-gcc := $(HERO_CVA6_SDK_DIR)/configs/buildroot64_defconfig
 
 # Cross compiler *Linux* gcc toolchain
-$(HERO_LINUX_CROSS_COMPILE)-gcc:
+$(HERO_LINUX_CROSS_COMPILE)gcc:
 	make -C $(HERO_CVA6_SDK_DIR) all
 
 # Compile linux image and device driver
 $(HERO_CVA6_SDK_DIR)/install64/vmlinux:
+	make -C $(HERO_CVA6_SDK_DIR) all --always-make
 	make -C $(HERO_CVA6_SDK_DIR) images
 
-hero-tc-gcc: $(HERO_LINUX_CROSS_COMPILE)-gcc
-hero-tc-gcc-artifacts: hero-load-artifacts-tc-gcc $(HERO_LINUX_CROSS_COMPILE)-gcc hero-save-artifacts-tc-gcc
+hero-tc-gcc: $(HERO_LINUX_CROSS_COMPILE)gcc
+
+hero-tc-gcc-relocate:
+	cp $(HERO_CVA6_SDK_DIR)/buildroot/support/misc/relocate-sdk.sh $(HERO_BR_OUTPUT_DIR)/host
+	cd $(HERO_BR_OUTPUT_DIR)/host && cp ../../support/misc/relocate-sdk.sh . && ./relocate-sdk.sh
+
+hero-tc-gcc-artifacts: hero-load-artifacts-tc-gcc $(HERO_LINUX_CROSS_COMPILE)gcc hero-save-artifacts-tc-gcc hero-tc-gcc-relocate
 
 hero-cva6-sdk-clean:
 	make -C $(HERO_CVA6_SDK_DIR) clean
 
-hero-cva6-sdk-all: $(HERO_LINUX_CROSS_COMPILE)-gcc $(HERO_CVA6_SDK_DIR)/install64/vmlinux
+hero-cva6-sdk-all: $(HERO_LINUX_CROSS_COMPILE)gcc $(HERO_CVA6_SDK_DIR)/install64/vmlinux
 
 ########
 # LLVM #

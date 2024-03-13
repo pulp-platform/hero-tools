@@ -155,7 +155,7 @@ hero-spatz-boot: $(HERO_CVA6_SDK_DIR)/install64/vmlinux
 	scp $(HERO_CVA6_SDK_DIR)/install64/uImage vcu128-01@bordcomputer:/srv/tftp/vcu128-01/carfield/${USER}-uImage
 	sed -i -e 's/\[ .* \]/$(XILINX_MAC_ADDR)/' $(HERO_CARFIELD_ROOT)/sw/boot/mac_address.dtsi
 	printf "remote-boot = \"129.132.24.199:vcu128-01/carfield/${USER}-uImage\";" > $(HERO_CARFIELD_ROOT)/sw/boot/remote_boot.dtsi
-	riscv -riscv64-gcc-12.2.0 make -C $(HERO_CARFIELD_ROOT) car-xil-flash $(HERO_ARTIFACTS_VARS_spatz-bit) XILINX_BOOT_ETH=1
+	#riscv -riscv64-gcc-12.2.0 make -C $(HERO_CARFIELD_ROOT) car-xil-flash $(HERO_ARTIFACTS_VARS_spatz-bit) XILINX_BOOT_ETH=1
 	make -C $(HERO_CARFIELD_ROOT) car-xil-program $(HERO_ARTIFACTS_VARS_spatz-bit)
 
 ####################

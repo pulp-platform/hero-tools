@@ -60,6 +60,8 @@ int main(int argc, char *argv[]) {
         //}
         //printf("\n");
 
+        printf("\n ----- \n\n");
+
         hero_add_timestamp("enter_omp_map_to", __func__, 1);
 
 #pragma omp target device(1) map(to: x_p, y_p, M);

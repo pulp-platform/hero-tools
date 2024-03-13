@@ -1,5 +1,5 @@
 variables:
-  GIT_SUBMODULE_STRATEGY: normal
+  GIT_SUBMODULE_STRATEGY: recursive
   #GIT_SUBMODULE_PATHS: cva6-sdk
   #GIT_CLONE_PATH: '$CI_BUILDS_DIR/$CI_PIPELINE_ID/$CI_PROJECT_NAME'
   #GIT_CLONE_PATH: '$CI_BUILDS_DIR/$CI_JOB_ID/$CI_PROJECT_NAME'
@@ -33,20 +33,21 @@ pages:
     paths:
     - public
 
-gcc:
+cva6-sdk:
   stage: toolchains
   before_script:
     - source scripts/setenv.sh
   script:
-    - make hero-tc-gcc-artifacts
+    - make hero-cva6-sdk-all
   artifacts:
     expire_in: 1 week
     paths:
-      - cva6-sdk/buildroot/output/host
+      - cva6-sdk/buildroot/output
+      - cva6-sdk/install64
 
 llvm:
   stage: toolchains
-  needs: [ init, gcc ]
+  needs: [ init, cva6-sdk ]
   # This needs a bare shell with an up-to-date GZIP version
   before_script:
     - source scripts/setenv.sh
@@ -60,7 +61,7 @@ llvm:
 
 all-sw:
   stage: sw
-  needs: [ init, gcc, llvm ]
+  needs: [ init, cva6-sdk, llvm ]
   before_script:
     - source scripts/setenv.sh
   script:
@@ -75,21 +76,9 @@ all-sw:
       - sw/libhero/lib/
       - sw/libhero/include
 
-linux:
-  stage: sw
-  needs: [ gcc ]
-  before_script:
-    - source scripts/setenv.sh
-  script:
-    - make hero-cva6-sdk-all
-  artifacts:
-    expire_in: 1 week
-    paths:
-      - cva6-sdk/install64
-
 safety_island_apps:
   stage: apps
-  needs: [ init, gcc, llvm, all-sw ]
+  needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:
     - source scripts/setenv.sh
     - export SAFETY_ROOT=$CI_PROJECT_DIR/platforms/carfield/safety_island
@@ -99,7 +88,7 @@ safety_island_apps:
 
 spatz_apps:
   stage: apps
-  needs: [ init, gcc, llvm, all-sw ]
+  needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:
     - source scripts/setenv.sh
     - export SPATZ_ROOT=$CI_PROJECT_DIR/platforms/carfield/spatz
@@ -109,7 +98,7 @@ spatz_apps:
 
 occamy_apps:
   stage: apps
-  needs: [ init, gcc, llvm, all-sw ]
+  needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:
     - source scripts/setenv.sh
     - export OCCAMY_ROOT=$CI_PROJECT_DIR/platforms/occamy
@@ -119,7 +108,7 @@ occamy_apps:
 
 occamy_bit:
   stage: bitstreams
-  needs: [ init, gcc ]
+  needs: [ init, cva6-sdk ]
   before_script:
     - source scripts/setenv.sh
   script:
