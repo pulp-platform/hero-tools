@@ -39,7 +39,7 @@ $(HERO_LINUX_CROSS_COMPILE)gcc:
 
 # Compile linux image and device driver
 $(HERO_CVA6_SDK_DIR)/install64/vmlinux:
-	make -C $(HERO_CVA6_SDK_DIR) all --always-make
+	make -C $(HERO_CVA6_SDK_DIR) all
 	make -C $(HERO_CVA6_SDK_DIR) images
 
 hero-tc-gcc: $(HERO_LINUX_CROSS_COMPILE)gcc
