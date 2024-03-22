@@ -84,15 +84,15 @@ int main(int argc, char **argv) {
                 for (int j = 0; j < ret; j += sizeof(uint8_t)) {
                     ((uint8_t *)(all_mem + offset + i))[j] =
                         ((uint8_t *)buf)[j];
-                    printf("i:%llx j:%i %#02llx -> %p\n", i, j,
+                    printf("%p (i:%llx j:%i) %#02llx -> %p\n", ((uint8_t *)(offset + i) + j), i, j,
                            ((uint8_t *)buf)[j],
                            ((uint8_t *)(all_mem + offset + i)));
                 }
             } else {
                 for (int j = 0; j < sizeof(buf); j += sizeof(uint64_t)) {
                     ((uint64_t *)(all_mem + offset + i))[j / 8] = buf[j / 8];
-                    printf("i:%llx j/8:%i %#016llx -> %p\n", i, j / 8,
-                           buf[j / 8], ((uint64_t *)(all_mem + offset + i)));
+                    printf("%p (i:%llx j/8:%i %#016llx) -> %p\n", ((uint64_t *)(offset + i) + j), i, j / 8,
+                           buf[j / 8], ((uint64_t *)(all_mem + offset + i) + j));
                 }
             }
             ret = read(data_file_fd, buf, sizeof(buf));

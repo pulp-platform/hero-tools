@@ -55,6 +55,7 @@ int main(int argc, char *argv[]) {
 
         if (tmp_1 != tmp_2)
             printf("Error: map to_from did not work");
+
     }
 
 #ifndef __HERO_1

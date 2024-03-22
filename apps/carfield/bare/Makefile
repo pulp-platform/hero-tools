@@ -11,7 +11,7 @@ HERO_ROOT = $(realpath ../../..)
 BR_OUTPUT_DIR ?= $(HERO_ROOT)/cva6-sdk/buildroot/output/
 CROSS_COMPILE ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu-
 
-PLATFORM ?= SAFETY_ISLAND
+PLATFORM ?=
 platform := $(shell echo $(PLATFORM) | tr '[:upper:]' '[:lower:]')
 
 # Binaries
@@ -23,7 +23,7 @@ OBJDUMP     := $(CROSS_COMPILE)objdump
 CFLAGS := -Wall -O0 -g
 CFLAGS := $(CFLAGS) -Iinclude -Isrc/common -Ivendor/o1heap/o1heap -I$(HERO_ROOT)/sw/libhero/include
 CFLAGS := $(CFLAGS) -Wl,-R$(HERO_ROOT)/sw/libhero/lib
-LDFLAGS := -L$(HERO_ROOT)/sw/libhero/lib -lhero_safety_island
+LDFLAGS := -L$(HERO_ROOT)/sw/libhero/lib -lhero_$(PLATFORM)
 
 SRCS   := main.c
 OBJS   := $(SRCS:%.c=%.o)

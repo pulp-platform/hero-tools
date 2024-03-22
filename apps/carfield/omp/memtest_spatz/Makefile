@@ -4,9 +4,9 @@ TARGET_HOST := riscv64-hero-linux-gnu
 DEVS := hero1
 TARGET_DEVS := $(foreach dev,$(DEVS),riscv32-hero-$(dev)-elf)
 
-CSRCS = axpy.c
+CSRCS = memtest_spatz.c
 
-CFLAGS   += -Og -g
+CFLAGS   += -O3 -g
 CFLAGS   += -v -debug -save-temps=obj
 
 ### HOST ###
