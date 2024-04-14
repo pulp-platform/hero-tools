@@ -24,12 +24,8 @@
 
 #define DRIVER_NAME "eth_snitch_cluster"
 
-#define HBM_0_OFFSET 0x80000000UL
+#define DTB_OFFSET   0xC0000000
 
-#define SPM_OFFSET   0x70000000UL
-
-#define DTB_OFFSET   HBM_0_OFFSET + 0
-#define DTB_MAGIC    0xd00dfeed
 // Arbitrary allow 10KiB to map were the DTB is written
 #define DTB_MAP_SIZE 1024 * 10
 

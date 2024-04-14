@@ -37,10 +37,6 @@ MODULE_AUTHOR("Pulp Platform");
 MODULE_DESCRIPTION("");
 MODULE_VERSION("");
 
-#define BIG_ENDIAN(n)                                                              \
-  (((n >> 24) & 0xFFu) | (((n >> 16) & 0xFFu) << 8) | (((n >> 8) & 0xFFu) << 16) | \
-   ((n & 0xFFu) << 24))
-
 #define HEXDUMP_IO(addr, len)                                          \
   do {                                                                 \
     for (i = 0; i < len; i++) {                                        \
@@ -57,17 +53,12 @@ MODULE_VERSION("");
     }                                                                  \
   } while (0)
 
-/* Symbol defined in modified XDMA driver */
-extern phys_addr_t pci_dma_bypass_bar_start;
-// This bar points to the address 0 of the FPGA
-phys_addr_t *__pci_dma_bypass_bar_start;
-
 //////////////////////////////////////////
 
 static int bar_read_dtb(struct pci_dev *pci_dev, int bar, u64 offset, void **ret_dtb_blob,
                         u32 *ret_dtb_size) {
   int i;
-  u32 dtb_size;
+  u32 dtb_size, dtb_magic;
   u64 start, size;
   u32 flags;
   void *dtb_map;
@@ -87,8 +78,14 @@ static int bar_read_dtb(struct pci_dev *pci_dev, int bar, u64 offset, void **ret
     return -ENOMEM;
   }
 
+  dtb_magic = be32_to_cpu(ioread32(((__be32 *)dtb_map)));
+  if(dtb_magic != 0xd00dfeed) {
+   pr_err("bad dtb magic\n");
+    return -EINVAL;
+  }
+
   // Copy DTB from FPGA
-  dtb_size = BIG_ENDIAN(ioread32(((uint32_t *)dtb_map) + 1));
+  dtb_size = be32_to_cpu(ioread32(((__be32 *)dtb_map) + 1));
   *ret_dtb_blob = kzalloc(DTB_MAP_SIZE, GFP_KERNEL);
   if (!*ret_dtb_blob) {
     pr_err("kzalloc failed\n");
@@ -101,73 +98,6 @@ static int bar_read_dtb(struct pci_dev *pci_dev, int bar, u64 offset, void **ret
   *ret_dtb_size = dtb_size;
 
   iounmap(dtb_map);
-
-  return 0;
-}
-
-static int bar_write_test(struct pci_dev *pci_dev, int bar, u64 offset) {
-  int i, val, sum;
-  u64 start, size;
-  u64 test_start, test_size;
-  u32 flags;
-  void *ret, *bar_map;
-
-  start = pci_resource_start(pci_dev, bar);
-  if (!start) return -EINVAL;
-  test_start = start + HBM_0_OFFSET;
-
-  flags = pci_resource_flags(pci_dev, bar);
-  if (!(flags & IORESOURCE_MEM)) return -EINVAL;
-
-  size = pci_resource_len(pci_dev, bar);
-  test_size = 0;
-
-  pr_info("start %llx, size %llx, flags %x\n", start, size, flags);
-
-  bar_map = ioremap(start + HBM_0_OFFSET, test_size);
-
-  if (!bar_map) {
-    pr_err("ioremap failed\n");
-    return -ENOMEM;
-  }
-
-  val = 0;
-
-  // Write to fpga
-  for (i = 0; i < test_size; i++) *(((uint8_t *)bar_map) + 4 + i) = val;
-
-  // Read from fpga
-  for (i = 0; i < test_size; i++) sum += *(((uint8_t *)bar_map) + 4 + i);
-
-  pr_info("test done\n");
-
-  iounmap(bar_map);
-
-  return 0;
-}
-
-static int of_bar_remap(struct pci_dev *pci_dev, int bar, u64 offset, u32 val[5]) {
-  u64 start, size;
-  u32 flags;
-
-  start = pci_resource_start(pci_dev, bar);
-  if (!start) return -EINVAL;
-
-  flags = pci_resource_flags(pci_dev, bar);
-  if (!(flags & IORESOURCE_MEM)) return -EINVAL;
-
-  /* Bus address */
-  val[0] = offset;
-
-  /* PCI bus address */
-  val[1] = 0x2 << 24;
-  val[2] = start >> 32;
-  val[3] = start;
-
-  /* Size */
-  size = pci_resource_len(pci_dev, bar);
-  val[4] = size >> 32;
-  val[5] = size;
 
   return 0;
 }
@@ -232,7 +162,7 @@ static int hero_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id) 
 
   dev_info(dev, "Read BAR\n");
 
-  ret = bar_read_dtb(pdev, 4, 0, &data->dtb_blob, &data->dtb_size);
+  ret = bar_read_dtb(pdev, 0, 0, &data->dtb_blob, &data->dtb_size);
   if (ret) return ret;
 
   dev_info(dev, "Read dtb at %p\n", data->dtb_blob);
@@ -243,20 +173,6 @@ static int hero_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id) 
   ret = of_overlay_fdt_apply(data->dtb_blob, data->dtb_size, &data->ovcs_id,
                              data->dev->parent->of_node);
   if (ret) dev_err(dev, "oops of_overlay_fdt_apply_to_node %i\n", ret);
-
-
-/*
-  dev_info(dev, "Getting range infos\n");
-
-  of_bar_remap(data->pci_dev, 2, 0, val[0]);
-
-  dev_info(dev, "Applying ranges changeset\n");
-
-  of_changeset_init(&data->of_cs);
-  of_changeset_add_prop_u32_array(&data->of_cs, data->dev->of_node, "ranges", (const u32 *)val,
-                                  ARRAY_SIZE(val) * ARRAY_SIZE(val[0]));
-  of_changeset_apply(&data->of_cs);
-*/
 
   dev_info(dev, "Populating platform %p\n", data->dev->of_node);
 
