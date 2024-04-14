@@ -4,7 +4,7 @@ TARGET_HOST := riscv64-hero-linux-gnu
 DEVS := hero1
 TARGET_DEVS := $(foreach dev,$(DEVS),riscv32-hero-$(dev)-elf)
 
-CSRCS = helloworld.c
+CSRCS = matvec.c
 
 CFLAGS   += -O2
 CFLAGS   += -v -debug -save-temps=obj
@@ -40,6 +40,8 @@ LDFLAGS  += -hero1-lomptarget_device
 
 LDFLAGS  += --hero1-ld-path=$(HERO_INSTALL)/bin/ld.lld
 
+LDFLAGS  += -lm
+
 -include ../common/default.mk
 
-.PRECIOUS: helloworld-hero1.OMP.ll helloworld-host.OMP.ll
+.PRECIOUS: lama-hero1.OMP.ll lama-host.OMP.ll

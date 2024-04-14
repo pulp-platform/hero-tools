@@ -1,24 +1,5 @@
-/*
- * HERO HelloWorld Example Application
- *
- * Copyright 2018 ETH Zurich, University of Bologna
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ////// HERO_1 includes /////
 #ifdef __HERO_1
-
 ////// HOST includes /////
 #else
 #include <libhero/herodev.h>
@@ -26,7 +7,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
-#define snrt_printf printf
 #endif
 ///// ALL includes /////
 #include <hero_64.h>
@@ -74,6 +54,7 @@ int main(int argc, char *argv[]) {
 
         if (tmp_1 != tmp_2)
             printf("Error: map to_from did not work");
+
     }
 
 #ifndef __HERO_1
