@@ -17,6 +17,12 @@ all:
 
 include $(HERO_ARTIFACTS_DIR)/artifacts.mk
 
+#############
+# Platforms #
+#############
+
+include $(HERO_PLATFORMS_DIR)/platforms.mk
+
 ############
 # CVA6 SDK #
 ############
@@ -93,12 +99,6 @@ hero-tc-llvm-artifacts: hero-load-artifacts-tc-llvm $(HERO_INSTALL)/bin/clang $(
 ###############
 
 include $(HERO_SW_DIR)/sw.mk
-
-#############
-# Platforms #
-#############
-
-include $(HERO_PLATFORMS_DIR)/platforms.mk
 
 ##########
 # Footer #

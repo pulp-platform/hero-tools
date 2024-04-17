@@ -12,7 +12,7 @@ HERO_OCCAMY_ROOT ?= $(HERO_PLATFORMS_DIR)/occamy
 HERO_OCCAMY_BIT := $(HERO_OCCAMY_ROOT)/target/fpga/occamy_vcu128/occamy_vcu128.runs/impl_1/occamy_vcu128_wrapper.bit
 
 # Clone Occamy
-$(HERO_OCCAMY_ROOT):
+$(HERO_OCCAMY_ROOT)/Bender.yml:
 	git clone git@github.com:pulp-platform/occamy.git --branch=ck/fpga2 $@
 .PRECIOUS: $(HERO_OCCAMY_ROOT)
 
