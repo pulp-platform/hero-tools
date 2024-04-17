@@ -131,13 +131,15 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
     while (n_words--) {
         do {
             // If this region is cached, need a fence
-            // asm volatile ("fence");
+#ifndef HOST_UNCACHED_IO
+            asm volatile ("fence");
+#endif
             ret = rb_host_get(dev->mboxes.a2h_mbox, &buffer[n_words]);
             if (ret) {
                 if (++retry == 100)
                     pr_warn("high retry on mbox read()\n");
                 // For now avoid sleep that creates context switch
-                for(int i = 0; i < 2000000000/20000000 /*10*/; i++) {
+                for(int i = 0; i < HOST_MBOX_CYCLES; i++) {
                     asm volatile ("nop");
                 }
             }
@@ -151,13 +153,15 @@ int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
     int ret, retry = 0;
     do {
         // If this region is cached, need a fence
-        // asm volatile ("fence");
+#ifndef HOST_UNCACHED_IO
+            asm volatile ("fence");
+#endif
         ret = rb_host_put(dev->mboxes.h2a_mbox, &word);
         if (ret) {
             if (++retry == 100)
                 pr_warn("high retry on mbox write()\n");
             // For now avoid sleep that creates context switch
-            for(int i = 0; i < 2000000000/20000000 /* 10 */; i++) {
+            for(int i = 0; i < HOST_MBOX_CYCLES; i++) {
                 asm volatile ("nop");
             }
         }

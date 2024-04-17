@@ -37,8 +37,8 @@ HERO_ARTIFACTS_FILES_tc-gcc := $(HERO_CVA6_SDK_DIR)/configs/buildroot64_defconfi
 $(HERO_LINUX_CROSS_COMPILE)gcc:
 	make -C $(HERO_CVA6_SDK_DIR) all
 
-# Compile linux image and device driver
-$(HERO_CVA6_SDK_DIR)/install64/vmlinux:
+# Compile linux image and device driver, quirk for Occamy
+$(HERO_CVA6_SDK_DIR)/install64/vmlinux: | $(HERO_OCCAMY_ROOT)/Bender.yml
 	make -C $(HERO_CVA6_SDK_DIR) all
 	make -C $(HERO_CVA6_SDK_DIR) images
 
@@ -73,7 +73,7 @@ $(HERO_INSTALL)/bin/clang:
 # Build newlib for a MARCH ($1) and MABI $(2) couple
 HERO_DEVS_NEWLIB :=
 define hero_devs_build_newlib =
-$(HERO_INSTALL)/$(1)-$(2): $(HERO_INSTALL)/bin/clang
+$(HERO_INSTALL)/$(1)-$(2): | $(HERO_INSTALL)/bin/clang
 	cd $(HERO_ROOT)/output/tc-llvm/ && MARCH=$(1) MABI=$(2) $(HERO_ROOT)/toolchain/setup-llvm-device.sh $(HERO_ROOT)/toolchain/llvm-project
 HERO_DEVS_NEWLIB += $(HERO_INSTALL)/$(1)-$(2)
 .PRECIOUS: $(HERO_INSTALL)/$(1)-$(2)

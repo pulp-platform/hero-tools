@@ -12,6 +12,7 @@ BR_OUTPUT_DIR ?= $(realpath ../../cva6-sdk/buildroot/output/)
 CROSS_COMPILE ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu-
 
 PLATFORM ?=
+HOST     ?=
 
 # Binaries
 CC          := $(CROSS_COMPILE)gcc
@@ -28,8 +29,12 @@ SRCS_spatz_cluster := src/carfield/spatz_cluster.c
 CFLAGS_occamy := -I src/occamy -I $(HERO_ROOT)/cva6-sdk/sw/drivers/occamy
 SRCS_occamy := src/occamy/snitch_cluster.c
 
+# Host specific variables
+CFLAGS_cva6 := -DHOST_MBOX_CYCLES=20
+CFLAGS_sg2042 := -DHOST_UNCACHED_IO -DHOST_MBOX_CYCLES="(10*2000000000/25000000)"
+
 # Final variables
-CFLAGS := $(CFLAGS_$(PLATFORM))
+CFLAGS := $(CFLAGS_$(PLATFORM)) $(CFLAGS_$(HOST))
 CFLAGS := $(CFLAGS) -Wall -O3 -g -fPIC -DPLATFORM=$(PLATFORM) -DLINUX_APP
 CFLAGS := $(CFLAGS) -Iinclude -Isrc/common -Ivendor/o1heap/o1heap
 
