@@ -14,14 +14,15 @@ git submodule update --init --recursive
 
 Tihs repository contains the following directories:
 
-| Directory   | Documentation                        | Contains                                                                                         |
-| ----------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `apps`      | [OpenMP](misc/openmp.md)             | Some example applications using OpenMP                                                           |
-| `artifacts` | [Artifacts](misc/index.md#artifacts) | The scripts and outputs of the artifact management system                                        |
-| `cva6-sdk`  | [Driver](software/drivers.md)        | CVA6 SDK submodule containing Linux and the platform drivers                                     |
-| `scripts`   | [FPGAs](misc/index.md#fpgas)         | Helper scripts to be used at IIS                                                                 |
-| `sw`        | [Hero Runtime](software/hero.md)     | Hero runtime library, built (rv64) LLVM libraries and built (rv64) OpenMP target runtime library |
-| `toolchain` | [Targets](platforms/index.md)        | LLVM fork containing the OpenMP taget runtime library implementation                             |
+| Directory   | Contains                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| `apps`      | Some example applications using OpenMP                                                           |
+| `artifacts` | The scripts and outputs of the artifact management system                                        |
+| `cva6-sdk`  | CVA6 SDK submodule containing Linux and the platform drivers                                     |
+| `platform`  | The hardware platforms available (cloned on demand)                                              |
+| `scripts`   | Helper scripts                                                                                   |
+| `sw`        | Hero runtime library, built (rv64) LLVM libraries and built (rv64) OpenMP target runtime library |
+| `toolchain` | LLVM fork containing the OpenMP taget runtime library implementation                             |
 
 
 ## Getting started

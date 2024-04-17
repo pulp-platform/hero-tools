@@ -24,11 +24,8 @@ nav:
   - index.md
   - Getting Started: gs.md
 - Sofware:
-  - sw/index.md
-  - Drivers: sw/drivers.md
-  - Hero Library: sw/hero.md
-  - OpenMP runtime: sw/openmp.md
+  - software/index.md
 - Platforms:
-  - pf/index.md
-  - Carfield: pf/carfield.md
-  - Occamy: pf/occamy.md
+  - Carfield: platforms/carfield.md
+  - Occamy: platforms/occamy.md
+  - Milk-V: platforms/milkv.md
