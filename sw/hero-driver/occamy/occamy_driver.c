@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
+#include <linux/dma-mapping.h>
 
 #include "occamy_driver.h"
 #include "occamy.h"
@@ -162,6 +163,9 @@ int card_platform_driver_probe(struct platform_device *pdev) {
     // Probe spm-wide
     probe_node(pdev, dev_data, &dev_data->spm_wide_mem, "spm-wide");
 
+    // Probe pcie-axi-bar-mem
+    probe_node(pdev, dev_data, &dev_data->pcie_axi_bar_mem, "pcie-axi-bar-mem");
+
     // Add hardware details to information buffer
     dev_data->buffer_size +=
         sprintf(dev_data->buffer + dev_data->buffer_size,
@@ -171,6 +175,12 @@ int card_platform_driver_probe(struct platform_device *pdev) {
     // Buffer list
     INIT_LIST_HEAD(&dev_data->test_head);
 
+    // DMA mask
+    ret =dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+    if (ret < 0) {
+        pr_err("dma_set_mask_and_coherent failed \n");
+        return ret;
+    }
     ret = cdev_add(&dev_data->cdev, dev_data->dev_num, 1);
     if (ret < 0) {
         pr_err("Cdev add failed \n");

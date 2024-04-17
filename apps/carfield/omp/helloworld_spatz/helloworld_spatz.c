@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
 
         hero_add_timestamp("enter_omp_map_to", __func__, 1);
 
-#pragma omp target device(1) map(to : tmp_1, tmp_2)
+#pragma omp target device(1) map(to : tmp_1)
         { volatile uint32_t local_tmp_1 = tmp_1; }
 
         // Benchmark offload with data copy to_from

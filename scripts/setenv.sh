@@ -30,3 +30,4 @@ export PATH=$HERO_INSTALL/bin:$PATH
 export HERO_ARTIFACTS_ROOT=/usr/scratch2/wuerzburg/cykoenig/memora/hero
 
 export CARFIELD_ROOT=$HERO_ROOT/platforms/carfield
+export OCCAMY_ROOT=$HERO_ROOT/platforms/occamy

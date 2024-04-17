@@ -53,9 +53,10 @@ int main(int argc, char *argv[]) {
         { tmp_1 = tmp_2; }
 
         if (tmp_1 != tmp_2)
-            printf("Error: map to_from did not work");
-
+            printf("Error: %i map to_from did not work\n\r", i);
     }
+
+    hero_add_timestamp("end", __func__, 1);
 
 #ifndef __HERO_1
     // Print all the recorded timestamps

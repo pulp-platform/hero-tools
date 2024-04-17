@@ -72,8 +72,10 @@ void hero_dev_reset(HeroDev *dev, unsigned full) {
     // Disable IRQs
     writew(0, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_EN);
     writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_SND_CLR);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_0_INT_RCV_CLR);
     writew(0, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_EN);
     writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_SND_CLR);
+    writew(1, car_mboxes + CARFIELD_MBOX_HOST_2_SPATZ_1_INT_RCV_CLR);
     // Reset and de-reset
     writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
     fence();

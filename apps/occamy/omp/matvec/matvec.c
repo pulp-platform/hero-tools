@@ -27,13 +27,13 @@ static inline void fence() { asm volatile("fence" ::: "memory"); }
 #include <hero_64.h>
 ///// END includes /////
 
-#define DTYPE uint32_t
+#define DTYPE float
 
 #define MIN(A, B) (A < B ? A : B)
 
 // TCDM holds 32768 float-32 elements.
-// We allow only using the quarter of the TCDM
-#define MAX_ELEM 128 * 1024 / (4 * sizeof(DTYPE))
+// We keep 32 KiB of TCDM for stacks
+#define MAX_ELEM (128-32) * 1024 / (sizeof(DTYPE))
 #define VERIFY 1
 
 #ifndef __HERO_DEV
@@ -50,21 +50,31 @@ long time_in_ms() {
 void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
             uint32_t w_p_, int n_, int d_) {
 
-    hero_add_timestamp("region_omp_matvec", __func__, 1);
+    if (n_ * 9 > MAX_ELEM) {
+        printf("Error : Size too large\n\r");
+        return;
+    }
+
+    char toprint[128];
+    snprintf(toprint, 128, "enter_omp_matvec-%u", n_);
+    hero_add_timestamp(toprint,__func__,0);
 
 #pragma omp target device(1) map(to : n_, d_, xout_p_, x_p_, w_p_)
     {
-        int n = n_;
-        int d = d_;
-        uint32_t xout_p = xout_p_;
-        uint32_t x_p = x_p_;
-        uint32_t w_p = w_p_;
+        volatile int n = n_;
+        volatile int d = d_;
+        volatile uint32_t xout_p = xout_p_;
+        volatile uint32_t x_p = x_p_;
+        volatile uint32_t w_p = w_p_;
 
-        snrt_printf("W [%x] (%d x %d) @ X [%x] (%d) -> %x\n\r", w_p, d, n, x_p,
-                    n, xout_p);
 #ifdef __HERO_1
 
-        snrt_alloc_init();
+        //snrt_printf("core: %x - W [%x] (%d x %d) @ X [%x] (%d) -> %x\n\r",
+        //            snrt_cluster_core_idx(), w_p, d, n, x_p, n, xout_p);
+
+        if (!n || !d || !xout_p || !x_p || !w_p) {
+            goto omp_exit;
+        }
 
         DTYPE *x_l1 = snrt_l1alloc(n * sizeof(DTYPE));
         DTYPE *w_row_l1 = snrt_l1alloc(8 * n * sizeof(DTYPE));
@@ -93,9 +103,11 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
 
 #endif
 
+    omp_exit:;
     }
 
-    hero_add_timestamp("region_verify_matvec", __func__, 1);
+    snprintf(toprint, 128, "enter_omp_verify_matvec-%u", n_);
+    hero_add_timestamp(toprint,__func__,0);
 
 #ifdef VERIFY
     int i;
@@ -110,31 +122,32 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
     }
 #endif
 
-    hero_add_timestamp("region_end", __func__, 1);
+    hero_add_timestamp("enter_omp_end", __func__, 1);
 }
 
 int main(int argc, char *argv[]) {
 
-    printf("cva6 main()\n");
+    //printf("cva6 main()\n");
 
     uint32_t tmp_1 = 5;
     uint32_t tmp_2 = 10;
 
-    hero_add_timestamp("region_omp_init", __func__, 1);
+    hero_add_timestamp("enter_omp_init", __func__, 1);
     // Init Hero OpenMP runtime
 #pragma omp target device(1) map(tofrom : tmp_1, tmp_2)
     { tmp_1 = tmp_2; }
 
-    hero_add_timestamp("region_data_prep", __func__, 1);
+    hero_add_timestamp("enter_omp_data_prep", __func__, 1);
 
     uintptr_t C_phys, D_phys, E_phys;
     DTYPE *C = NULL, *D = NULL, *E;
 
-    int width = 244;
-    int height = 200;
+    int height = 20;
 
     if (argc > 1)
         height = strtol(argv[1], NULL, 10);
+
+    int width = height;
 
     C = hero_dev_l3_malloc(NULL, width * height * sizeof(DTYPE), &C_phys);
     D = hero_dev_l3_malloc(NULL, width * sizeof(DTYPE), &D_phys);

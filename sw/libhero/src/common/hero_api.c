@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <time.h>
 
-int libhero_log_level = LOG_MIN;
+int libhero_log_level = LOG_MAX;
 
 // Stucture containing the *device* L2 and L3 allocator
 struct O1HeapInstance *l2_heap_manager, *l3_heap_manager;
@@ -131,13 +131,13 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
     while (n_words--) {
         do {
             // If this region is cached, need a fence
-            asm volatile ("fence");
+            // asm volatile ("fence");
             ret = rb_host_get(dev->mboxes.a2h_mbox, &buffer[n_words]);
             if (ret) {
                 if (++retry == 100)
                     pr_warn("high retry on mbox read()\n");
                 // For now avoid sleep that creates context switch
-                for(int i = 0; i < 100; i++) {
+                for(int i = 0; i < 2000000000/20000000 /*10*/; i++) {
                     asm volatile ("nop");
                 }
             }
@@ -151,13 +151,13 @@ int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
     int ret, retry = 0;
     do {
         // If this region is cached, need a fence
-        asm volatile ("fence");
+        // asm volatile ("fence");
         ret = rb_host_put(dev->mboxes.h2a_mbox, &word);
         if (ret) {
             if (++retry == 100)
                 pr_warn("high retry on mbox write()\n");
             // For now avoid sleep that creates context switch
-            for(int i = 0; i < 100; i++) {
+            for(int i = 0; i < 2000000000/20000000 /* 10 */; i++) {
                 asm volatile ("nop");
             }
         }
