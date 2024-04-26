@@ -65,7 +65,9 @@ all-sw:
   before_script:
     - source scripts/setenv.sh
   script:
-    - make hero-sw-all
+    - make HERO_HOST=cva6 HERO_DEVICE=spatz_cluster hero-sw-all
+    - make HERO_HOST=cva6 HERO_DEVICE=occamy hero-sw-all
+    - make HERO_HOST=cva6 HERO_DEVICE=safety_island hero-sw-all
   artifacts:
     expire_in: 1 week
     paths:
@@ -91,7 +93,6 @@ spatz_apps:
   needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:
     - source scripts/setenv.sh
-    - export SPATZ_ROOT=$CI_PROJECT_DIR/platforms/carfield/spatz
   script:
     - make hero-spatz-sw-all
     - make -C apps/carfield/omp/helloworld_spatz all
@@ -101,7 +102,6 @@ occamy_apps:
   needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:
     - source scripts/setenv.sh
-    - export OCCAMY_ROOT=$CI_PROJECT_DIR/platforms/occamy
   script:
     - make hero-occamy-sw-all
     - make -C apps/occamy/omp/helloworld all
