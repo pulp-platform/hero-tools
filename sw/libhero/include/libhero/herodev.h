@@ -66,7 +66,7 @@ struct hero_timestamp {
 };
 
 // 0 = CSR cycle ; 1 = linux cputime
-#define HERO_TIMESTAMP_MODE 1
+#define HERO_TIMESTAMP_MODE 0
 
 // Host timestamps
 extern int hero_num_time_list;

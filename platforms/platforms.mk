@@ -104,7 +104,7 @@ HERO_ARTIFACTS_DATA_spatz-bit := $(HERO_CARFIELD_ROOT)/target/xilinx/out
 
 # Clone carfield
 $(HERO_CARFIELD_ROOT)/Bender.yml:
-	git clone git@github.com:CyrilKoe/carfield.git --branch=ck/hero_sw $(dir $@)
+	git clone git@github.com:CyrilKoe/carfield.git --branch=ck/hero_paper $(dir $@)
 
 # Fetch Carfield's islands
 $(HERO_SPATZ_ROOT)/Bender.yml $(HERO_SAFETY_ROOT)/Bender.yml: $(HERO_CARFIELD_ROOT)/Bender.yml
@@ -175,18 +175,15 @@ hero-safety-sw-clean:
 # Spatz SW #
 ############
 
-$(HERO_SPATZ_ROOT)/sw/hero/device/runtime/build/libsnRuntime.a: $(HERO_SPATZ_ROOT)/Bender.yml $(HERO_SPATZ_ROOT) FORCE
-	make -C $(HERO_SPATZ_ROOT)/sw/hero/device/runtime all
+$(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/sw/build/spatzBenchmarks/libomptarget.a: FORCE
+	LLVM_INSTALL_DIR=$(HERO_INSTALL) GCC_INSTALL_DIR=/usr/pack/riscv-1.0-kgf/pulp-gcc-2.6.0 \
+	SPATZ_CLUSTER_CFG=$(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/cfg/carfield.hjson \
+	make -C $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster sw
 
-$(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device/build/libomptarget_device.a: $(HERO_SPATZ_ROOT)/sw/hero/device/runtime/build/libsnRuntime.a FORCE
-	make -C $(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device all
-
-hero-spatz-sw-all: $(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device/build/libomptarget_device.a
+hero-spatz-sw-all: $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/sw/build/spatzBenchmarks/libomptarget.a
 
 hero-spatz-sw-clean:
-	make -C $(HERO_SPATZ_ROOT)/sw/hero/device/runtime clean
-	make -C $(HERO_SPATZ_ROOT)/sw/hero/device/apps/libomptarget_device clean
-
+	make -C $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster clean.sw
 
 .PHONY: hero-occamy-bit-all hero-occamy-bit-all-artifacts hero-occamy-bit-clean hero-occamy-sw-all hero-occamy-sw-clean
 .PHONY: hero-safety-bit-all hero-safety-bit-all-artifacts hero-safety-bit-clean hero-safety-sw-all hero-safety-sw-clean hero-safety-boot

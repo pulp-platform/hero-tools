@@ -1,6 +1,7 @@
 ////// HERO_1 includes /////
 #ifdef __HERO_1
-
+#include "printf.h"
+#include "omp.h"
 ////// HOST includes /////
 #else
 #include <libhero/herodev.h>
@@ -18,12 +19,16 @@ int main(int argc, char *argv[]) {
     uint32_t tmp_1;
     uint32_t tmp_2;
 
+    uint32_t A[256];
+
     // Benchmark omp init
 
     hero_add_timestamp("enter_omp_init", __func__, 1);
 
 #pragma omp target device(1)
-    { asm volatile("nop"); }
+    {
+        asm volatile("nop");
+    }
 
     // Benchmark offloads
 

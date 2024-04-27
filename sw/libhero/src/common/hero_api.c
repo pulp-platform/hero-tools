@@ -132,7 +132,7 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
         do {
             // If this region is cached, need a fence
 #ifndef HOST_UNCACHED_IO
-            asm volatile ("fence");
+            // asm volatile ("fence");
 #endif
             ret = rb_host_get(dev->mboxes.a2h_mbox, &buffer[n_words]);
             if (ret) {
@@ -154,7 +154,7 @@ int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
     do {
         // If this region is cached, need a fence
 #ifndef HOST_UNCACHED_IO
-            asm volatile ("fence");
+            // asm volatile ("fence");
 #endif
         ret = rb_host_put(dev->mboxes.h2a_mbox, &word);
         if (ret) {

@@ -125,11 +125,10 @@ int main(int argc, char *argv[]) {
         // printf("x_p (%x) y_p (%x) \n", x_p, y_p);
 
         printf("y (%i) : \n", M);
-        for(int i = 0; i < M; i++) {
+        for (int i = 0; i < M; i++) {
             printf("%f - ", y[i]);
         }
         printf("\n");
-
     }
 
 #ifndef __HERO_1
