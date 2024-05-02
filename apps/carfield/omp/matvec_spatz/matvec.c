@@ -1,9 +1,9 @@
-/* Inference for Llama-2 Transformer model in pure C */
-
 ////// HERO_1 includes /////
 #ifdef __HERO_1
-#include "encoding.h"
-#include "inttypes.h"
+#include "printf.h"
+#include "omp.h"
+#include "snrt.h"
+#include "matvec_dev.h"
 extern volatile uint32_t dma_wait_cycles;
 ////// HOST includes /////
 #else
@@ -39,7 +39,7 @@ static inline void fence() { asm volatile("fence" ::: "memory"); }
 
 void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_, uint32_t w_p_, int n_, int d_) {
 
-    if (n_ * 17 > MAX_ELEM) {
+    if (n_ * 9 > MAX_ELEM) {
         printf("Error : Size too large\n\r");
         return;
     }
@@ -62,98 +62,60 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
             goto omp_exit;
         }
 
-        //printf("%x - %x %x %x %x %x\n\r", (uint32_t)n, (uint32_t)d, (uint32_t)xout_p, (uint32_t)x_p, (uint32_t)w_p);
-        //printf("%x - %x %x %x %x\n\r", snrt_hartid(), snrt_cluster_core_idx(),snrt_is_dm_core(), snrt_is_compute_core());
+        // printf("%x - %x %x %x %x %x\n\r", (uint32_t)n, (uint32_t)d, (uint32_t)xout_p, (uint32_t)x_p, (uint32_t)w_p);
 
         DTYPE *x_l1[2];
         x_l1[0] = (DTYPE *) snrt_l1alloc(n * sizeof(DTYPE));
         DTYPE *w_row_l1[2];
-        w_row_l1[0] = (DTYPE *) snrt_l1alloc(8 * n * sizeof(DTYPE));
-        w_row_l1[1] = (DTYPE *) snrt_l1alloc(8 * n * sizeof(DTYPE));
+        w_row_l1[0] = (DTYPE *) snrt_l1alloc(2 * n * sizeof(DTYPE));
+        w_row_l1[1] = (DTYPE *) snrt_l1alloc(2 * n * sizeof(DTYPE));
 
         for(int i = 0; i < n; i++) {
             w_row_l1[1][i] = i;
             w_row_l1[0][i] = (float)(i%2);
         }
 
-        dm_memcpy_async((void*)x_l1[0], (const void*)x_p, n * sizeof(DTYPE));
-        dm_memcpy_async((void*)w_row_l1[0], (const void*)w_p , n * 8 * sizeof(DTYPE));
+        snrt_dma_start_1d_wideptr((void*)x_l1[0], (const void*)x_p, n * sizeof(DTYPE));
+        snrt_dma_start_1d_wideptr((void*)w_row_l1[0], (const void*)w_p , n * 2 * sizeof(DTYPE));
 
         int it = 0;
         uint32_t t0 = 0, ttot = 0;
 
-        for (int I = 0; I < d; I += 8) {
+        for (int I = 0; I < d; I += 2) {
             int rows_left = d - I;
             t0 = read_csr(mcycle);
-            dm_wait();
+            snrt_dma_wait_all();
             dma_wait_cycles += read_csr(mcycle) - t0;
-            if (rows_left > 8)
-                dm_memcpy_async(w_row_l1[(it+1)%2], w_p + n * sizeof(DTYPE) * (I+8), n * MIN(rows_left - 8, 8) * sizeof(DTYPE));
+            if (rows_left > 2)
+                snrt_dma_start_1d_wideptr(w_row_l1[(it+1)%2], w_p + n * sizeof(DTYPE) * (I+2), n * MIN(rows_left - 2, 2) * sizeof(DTYPE));
 
 #pragma omp parallel for
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 2; i++) {
                 DTYPE val = 0.0f;
                 if (I + i >= d)
                     goto end;
-
-                for (int j = 0; j < n; j++) {
-                    val += x_l1[0][j] * w_row_l1[it%2][j + snrt_cluster_core_idx() * n];
-                }
+                val = fdotp_v32b(x_l1[0], &(w_row_l1[it%2][snrt_cluster_core_idx() * n]), n);
                 ((DTYPE *)xout_p)[i + I] = val;
             end:;
             }
             it++;
         }
 
-        //printf("%x - dma -> %u (now:%u)\n\r", ttot, read_csr(mcycle));
-
 #endif
 
     omp_exit:;
     }
-
-
-#ifdef VERIFY
-    int i;
-    DTYPE *verif = (DTYPE*) malloc(d_ * sizeof(DTYPE));
-    snprintf(toprint, 128, "enter_omp_verify_matvec-%u", n_);
-    asm volatile ("fence");
-    hero_add_timestamp(toprint,__func__,0);
-    for (i = 0; i < d_; i++) {
-        DTYPE val = 0.0f;
-        for (int j = 0; j < n_; j++) {
-            val += w_[i * n_ + j] * x_[j];
-        }
-        verif[i] = val;
-    }
-    asm volatile ("fence");
-    snprintf(toprint, 128, "end_omp_verify_matvec-%u", n_);
-    hero_add_timestamp(toprint,__func__,0);
-    for (i = 0; i < d_; i++) {
-        if (xout_[i] != verif[i])
-            printf("Error : (%i) %f != %f\n", i, xout_[i], verif[i]);
-    }
-#endif
-
-    //hero_add_timestamp("enter_omp_end", __func__, 1);
+    hero_add_timestamp("enter_omp_end", __func__, 1);
 }
 
 int main(int argc, char *argv[]) {
 
-    //printf("cva6 main()\n");
-
-    uint32_t tmp_1 = 5;
-    uint32_t tmp_2 = 10;
-
-    hero_add_timestamp("enter_omp_init", __func__, 1);
-    // Init Hero OpenMP runtime
-#pragma omp target device(1) map(tofrom : tmp_1, tmp_2)
-    { tmp_1 = tmp_2; }
-
-    hero_add_timestamp("enter_omp_data_prep", __func__, 1);
-
+    // Physical addresses
     uintptr_t C_phys, D_phys, E_phys;
+    // Virtual addresses
     DTYPE *C = NULL, *D = NULL, *E;
+    // Verification matrices
+    DTYPE *C_test = NULL, *D_test = NULL, *E_test;
 
     int height = 20;
 
@@ -162,32 +124,60 @@ int main(int argc, char *argv[]) {
 
     int width = height;
 
+    // Init Hero OpenMP runtime
+    hero_add_timestamp("enter_omp_init", __func__, 1);
+#pragma omp target device(1)
+    { asm volatile ("nop"); }
+
+    // Device matrices
     C = hero_dev_l3_malloc(NULL, width * height * sizeof(DTYPE), &C_phys);
     D = hero_dev_l3_malloc(NULL, width * sizeof(DTYPE), &D_phys);
     E = hero_dev_l3_malloc(NULL, height * sizeof(DTYPE), &E_phys);
+    // Verification matrices
+    C_test = malloc(width * height * sizeof(DTYPE));
+    D_test = malloc(width * sizeof(DTYPE));
+    E_test = malloc(height * sizeof(DTYPE));
 
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
+    // Prepare data
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
             C[i * width + j] = (DTYPE)((i + j)%4);
-        }
-    }
-
-    for (int j = 0; j < width; j++) {
+    for (int j = 0; j < width; j++)
         D[j] = (DTYPE)(j%4);
-    }
 
+    for (int i = 0; i < height * width; i++)
+        C_test[i] = C[i];
+    for (int i = 0; i < width; i++)
+        D_test[i] = D[i];
+
+    // Offload !
     matmul(E, E_phys, D, D_phys, C, C_phys, width, height);
 
-/*
-#pragma omp target device(1)
-    {
-    #ifdef __HERO_1
-    printf("dma - %lu\n\r",dma_wait_cycles);
-    #endif
-    }
-*/
 
 #ifndef __HERO_1
+#ifdef VERIFY
+    // Execution on host
+    char toprint[128];
+    snprintf(toprint, 128, "enter_omp_verify_matvec-%u", width);
+    hero_add_timestamp(toprint,__func__,0);
+    asm volatile ("fence");
+    for (int i = 0; i < height; i++) {
+        DTYPE val = 0.0f;
+        for (int j = 0; j < width; j++)
+            val += C_test[i * width + j] * D_test[j];
+        E_test[i] = val;
+    }
+    snprintf(toprint, 128, "enter_end", width);
+    asm volatile ("fence");
+    hero_add_timestamp(toprint,__func__,0);
+
+    // Verify result
+    for (int i = 0; i < height; i++) {
+            if(E_test[i] != E[i])
+                printf("nope %i\n\r", i);
+    }
+#endif
+
     // Print all the recorded timestamps
     hero_print_timestamp();
 

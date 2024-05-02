@@ -21,6 +21,9 @@ int main(int argc, char *argv[]) {
 
     uint32_t A[256];
 
+    for(int i = 0; i < rand() % 250000; i++)
+        asm volatile ("nop");
+
     // Benchmark omp init
 
     hero_add_timestamp("enter_omp_init", __func__, 1);
@@ -32,7 +35,7 @@ int main(int argc, char *argv[]) {
 
     // Benchmark offloads
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 5; i++) {
 
         // Benchmark simple offload
 

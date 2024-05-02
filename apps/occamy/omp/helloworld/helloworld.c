@@ -1,5 +1,6 @@
 ////// HERO_1 includes /////
 #ifdef __HERO_1
+
 ////// HOST includes /////
 #else
 #include <libhero/herodev.h>
@@ -17,16 +18,23 @@ int main(int argc, char *argv[]) {
     uint32_t tmp_1;
     uint32_t tmp_2;
 
+    uint32_t A[256];
+
+    for(int i = 0; i < rand() % 250000; i++)
+        asm volatile ("nop");
+
     // Benchmark omp init
 
     hero_add_timestamp("enter_omp_init", __func__, 1);
 
 #pragma omp target device(1)
-    { asm volatile("nop"); }
+    {
+        asm volatile("nop");
+    }
 
     // Benchmark offloads
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 5; i++) {
 
         // Benchmark simple offload
 
@@ -53,7 +61,7 @@ int main(int argc, char *argv[]) {
         { tmp_1 = tmp_2; }
 
         if (tmp_1 != tmp_2)
-            printf("Error: %i map to_from did not work\n\r", i);
+            printf("Error: map to_from did not work");
     }
 
     hero_add_timestamp("end", __func__, 1);

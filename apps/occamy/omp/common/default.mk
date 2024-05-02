@@ -130,7 +130,7 @@ include $(wildcard $(DEPFILES))
 
 # Phony
 clean:
-	-rm -vf __hmpp* $(EXE) *~ *.bc *.dis *.elf *.i *.lh *.lk *.ll *.o *.s *.slm a.out*
+	-rm -vf __hmpp* $(EXE) *~ *.bc *.dis *.elf *.i *.lh *.lk *.ll *.o *.s *.slm a.out* *.dump
 	-rm -rvf $(DEPDIR)
 	-rm -vf *-host-llvm *-host-gnu
 

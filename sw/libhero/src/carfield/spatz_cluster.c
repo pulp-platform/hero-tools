@@ -61,6 +61,16 @@ int carfield_lookup_mmap(int device_fd, int mmap_id, void **res) {
 }
 
 
+int carfield_lookup_munmap(int device_fd, int mmap_id, void *addr) {
+    size_t phy_len = 0;
+    uintptr_t phy_base = NULL;
+
+    carfield_lookup_mem(device_fd, mmap_id, &phy_len, &phy_base);
+
+    return munmap(addr, phy_len);
+}
+
+
 void hero_dev_reset(HeroDev *dev, unsigned full) {
     int err;
     // Isolate
@@ -294,4 +304,19 @@ void hero_dev_dma_2d_blk_memcpy(HeroDev *dev, uint64_t dst, uint64_t src, uint64
     while (*(uint64_t*)(chs_idma + 0x20) != 1) {
         asm volatile("nop");
     }
+}
+
+int hero_dev_munmap(HeroDev *dev) {
+    pr_trace("%s safety_island implementation\n", __func__);
+    carfield_lookup_munmap(device_fd, SOC_CTRL_MMAP_ID, car_soc_ctrl);
+    carfield_lookup_munmap(device_fd, MBOXES_MMAP_ID, car_mboxes);
+    carfield_lookup_munmap(device_fd, CTRL_REGS_MMAP_ID, chs_ctrl_regs);
+    carfield_lookup_munmap(device_fd, L2_INTL_0_MMAP_ID, car_l2_intl_0);
+    carfield_lookup_munmap(device_fd, L2_CONT_0_MMAP_ID, car_l2_cont_0);
+    carfield_lookup_munmap(device_fd, L2_INTL_1_MMAP_ID, car_l2_intl_1);
+    carfield_lookup_munmap(device_fd, L3_MMAP_ID, car_l3);
+    carfield_lookup_munmap(device_fd, IDMA_MMAP_ID, chs_idma);
+    carfield_lookup_munmap(device_fd, SPATZ_CLUSTER_MMAP_ID, car_spatz_cluster);
+    close(device_fd);
+    return 0;
 }

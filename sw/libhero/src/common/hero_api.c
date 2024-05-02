@@ -28,6 +28,8 @@ struct hero_timestamp time_list[MAX_TIMESTAMPS];
 int hero_num_time_list = 0;
 int hero_num_device_cycles;
 uint32_t hero_device_cycles[MAX_TIMESTAMPS];
+int hero_num_dma_cycles;
+uint32_t hero_dma_cycles[MAX_TIMESTAMPS];
 
 int hero_marker_fd;
 
@@ -76,7 +78,7 @@ void hero_print_timestamp() {
     for(int i = 0; i < hero_num_time_list; i++) {
         if (i < hero_num_time_list - 1)
             sub_timespec(time_list[i].timespec, time_list[i+1].timespec, &diff);
-        printf("%s %s %d.%.9ld %d.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec, diff.tv_sec, diff.tv_nsec);
+        printf("%s %s %d.%.9ld %ld.%.9ld\n", time_list[i].str_info, time_list[i].str_func, time_list[i].timespec.tv_sec, time_list[i].timespec.tv_nsec, diff.tv_sec, diff.tv_nsec);
     }
 #endif
 }
@@ -132,7 +134,7 @@ int hero_dev_mbox_read(const HeroDev *dev, uint32_t *buffer, size_t n_words) {
         do {
             // If this region is cached, need a fence
 #ifndef HOST_UNCACHED_IO
-            // asm volatile ("fence");
+            asm volatile ("fence");
 #endif
             ret = rb_host_get(dev->mboxes.a2h_mbox, &buffer[n_words]);
             if (ret) {
@@ -154,7 +156,7 @@ int hero_dev_mbox_write(HeroDev *dev, uint32_t word) {
     do {
         // If this region is cached, need a fence
 #ifndef HOST_UNCACHED_IO
-            // asm volatile ("fence");
+            asm volatile ("fence");
 #endif
         ret = rb_host_put(dev->mboxes.h2a_mbox, &word);
         if (ret) {
@@ -221,7 +223,7 @@ int hero_dev_free_mboxes(HeroDev *dev) {
     return 0;
 }
 
-int hero_dev_munmap(HeroDev *dev) {
+__attribute__((weak)) int hero_dev_munmap(HeroDev *dev) {
     pr_warn("%s unimplemented\n", __func__);
     return 0;
 }

@@ -29,7 +29,7 @@ CFLAGS   += -hero1-I$(OCCAMY_ROOT)/deps/snitch_cluster/sw/snRuntime/api
 CFLAGS   += -hero1-I$(OCCAMY_ROOT)/deps/snitch_cluster/sw/snRuntime/src
 CFLAGS   += -hero1-I$(OCCAMY_ROOT)/deps/snitch_cluster/sw/snRuntime/api/omp
 CFLAGS   += -hero1-I$(OCCAMY_ROOT)/deps/snitch_cluster/sw/snRuntime/src/omp
-CFLAGS   += -hero1-I$(OCCAMY_ROOT)/deps/snitch_cluster/sw/deps/riscv-opcodes/encoding.h
+CFLAGS   += -hero1-I$(OCCAMY_ROOT)/deps/snitch_cluster/sw/deps/riscv-opcodes
 
 LDFLAGS   += -hero1-L$(HERO_INSTALL)/lib/clang/15.0.0/rv32imafd-ilp32d/lib/
 LDFLAGS   += -hero1-lclang_rt.builtins-riscv32
