@@ -13,8 +13,8 @@
 int main(int argc, char **argv) {
     int device_fd =
         open("/sys/bus/pci/devices/0000:01:00.0/resource0", O_RDWR | O_SYNC);
-    void *all_mem = mmap(NULL, 0xFFFFFFFF, PROT_READ | PROT_WRITE, MAP_SHARED,
-                         device_fd, 0 * getpagesize());
+    void *all_mem = mmap(NULL, 0x01000000, PROT_READ | PROT_WRITE, MAP_SHARED,
+                         device_fd, 0xc0000000);
     int ret = 0;
 
     printf("Mapped pcie device memory at  %p\n", all_mem);
