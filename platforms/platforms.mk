@@ -13,11 +13,11 @@ HERO_OCCAMY_BIT := $(HERO_OCCAMY_ROOT)/target/fpga/occamy_vcu128/occamy_vcu128.r
 
 # Clone Occamy
 $(HERO_OCCAMY_ROOT)/Bender.yml:
-	git clone git@github.com:pulp-platform/occamy.git --branch=ck/fpga2 $@
-.PRECIOUS: $(HERO_OCCAMY_ROOT)
+	git clone git@github.com:pulp-platform/occamy.git --branch=ck/fpga2 $(dir $@)
+.PRECIOUS: $(HERO_OCCAMY_ROOT)/Bender.yml
 
 # (Re)generate RTL
-$(HERO_OCCAMY_ROOT)/target/sim/cfg/lru.hjson: $(HERO_OCCAMY_ROOT)
+$(HERO_OCCAMY_ROOT)/target/sim/cfg/lru.hjson: $(HERO_OCCAMY_ROOT)/Bender.yml
 	make -C $(HERO_OCCAMY_ROOT)/target/sim CFG_OVERRIDE=cfg/single-cluster.hjson rtl
 .PRECIOUS: $(HERO_OCCAMY_ROOT)/target/sim/cfg/lru.hjson
 
@@ -37,7 +37,7 @@ $(HERO_CVA6_SDK_DIR)/install64/u-boot-spl.bin:
 	exit 1
 
 # Fetch bitstream artifact (attention the sensitivity list needs $(HERO_OCCAMY_ROOT) to be built
-hero-occamy-bit-all-artifacts: $(HERO_OCCAMY_ROOT) hero-load-artifacts-occamy-bit $(HERO_OCCAMY_BIT) hero-save-artifacts-occamy-bit
+hero-occamy-bit-all-artifacts: $(HERO_OCCAMY_ROOT)/Bender.yml hero-load-artifacts-occamy-bit $(HERO_OCCAMY_BIT) hero-save-artifacts-occamy-bit
 
 # Build bitstream from scratch
 hero-occamy-bit-all: $(HERO_OCCAMY_BIT)
