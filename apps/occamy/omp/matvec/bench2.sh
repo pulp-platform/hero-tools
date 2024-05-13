@@ -5,7 +5,7 @@ mkdir -p $outputt
 
 for i in $(seq 10)
 do
-    for j in $(seq 5)
+    for j in $(seq 8)
     do
         size=$(( j * 128 ))
         echo "$size-$i"

@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <time.h>
 
-int libhero_log_level = LOG_MAX;
+int libhero_log_level = LOG_MIN;
 
 // Stucture containing the *device* L2 and L3 allocator
 struct O1HeapInstance *l2_heap_manager, *l3_heap_manager;

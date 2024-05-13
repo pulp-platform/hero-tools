@@ -4,6 +4,7 @@
 #ifdef __HERO_1
 #include "encoding.h"
 #include "inttypes.h"
+#include "matvec_dev.h"
 extern volatile uint32_t dma_wait_cycles;
 ////// HOST includes /////
 #else
@@ -62,7 +63,7 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
             goto omp_exit;
         }
 
-        printf("%x - %x %x %x %x %x\n\r", (uint32_t)n, (uint32_t)d, (uint32_t)xout_p, (uint32_t)x_p, (uint32_t)w_p);
+        //snrt_printf(" %x %x %x %x %x\n\r", (uint32_t)n, (uint32_t)d, (uint32_t)xout_p, (uint32_t)x_p, (uint32_t)w_p);
         //printf("%x - %x %x %x %x\n\r", snrt_hartid(), snrt_cluster_core_idx(),snrt_is_dm_core(), snrt_is_compute_core());
 
         DTYPE *x_l1[2];
@@ -96,10 +97,11 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
                 if (I + i >= d)
                     goto end;
 
-                for (int j = 0; j < n; j++) {
-                    val += x_l1[0][j] * w_row_l1[it%2][j + snrt_cluster_core_idx() * n];
-                }
-                ((DTYPE *)xout_p)[i + I] = val;
+                //for (int j = 0; j < n; j++) {
+                //    val += x_l1[0][j] * w_row_l1[it%2][j + snrt_cluster_core_idx() * n];
+                //}
+                //((DTYPE *)xout_p)[i + I] = val;
+                fdotp_32(x_l1[0], &(w_row_l1[it%2][snrt_cluster_core_idx() * n]), &(((DTYPE *)xout_p)[i + I]), n);
             end:;
             }
             it++;

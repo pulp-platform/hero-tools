@@ -16,7 +16,7 @@ LDFLAGS  += -L$(ROOT)/sw/libhero/lib -lhero_occamy
 ### DEVICE 1 ###
 
 CFLAGS   += --hero1-sysroot=$(HERO_INSTALL)/rv32imafd-ilp32d/riscv32-unknown-elf
-CFLAGS   += -hero1-march=rv32imafd_xdma
+CFLAGS   += -hero1-march=rv32imafd_zfh1p0_xfrep0p1_xssr0p1_xdma0p1_xfalthalf0p1_xfquarter0p1_xfaltquarter0p1_xfvecsingle0p1_xfvechalf0p1_xfvecalthalf0p1_xfvecquarter0p1_xfvecaltquarter0p1_xfauxhalf0p1_xfauxalthalf0p1_xfauxquarter0p1_xfauxaltquarter0p1_xfauxvecsingle0p1_xfauxvechalf0p1_xfauxvecalthalf0p1_xfauxvecquarter0p1_xfauxvecaltquarter0p1_xfexpauxvechalf0p1_xfexpauxvecalthalf0p1_xfexpauxvecquarter0p1_xfexpauxvecaltquarter0p1
 CFLAGS   += -hero1-D__HERO_1 -hero1-D__HERO_DEV
 
 LDFLAGS  += -hero1-I../common

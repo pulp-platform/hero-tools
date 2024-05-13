@@ -83,26 +83,25 @@ void clint_clear_irq(uint32_t irq) {
 }
 
 // Set up transparent TLB
-static int occamy_tlb_write(uint32_t idx, uint64_t addr_begin, uint64_t addr_end) {
+static int occamy_tlb_write(uint32_t idx, uint64_t addr_begin, uint64_t addr_end, uint32_t flags) {
     uint64_t page_num_base = addr_begin >> 12;
     uint64_t page_num_first = addr_begin >> 12;
     uint64_t page_num_last = addr_end >> 12;
-    uint32_t flags = 0x1;
 
-    writew((uint32_t) page_num_first        , (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x00 );
-    writew((uint32_t) (page_num_first >> 32), (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x04 );
-    writew((uint32_t) page_num_last         , (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x08 );
-    writew((uint32_t) (page_num_last >> 32) , (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x0c );
-    writew((uint32_t) page_num_base         , (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x10 );
-    writew((uint32_t) (page_num_base >> 32) , (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x14 );
-    writew((uint32_t) flags                 , (uint32_t *) occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x18 );
-    writew((uint32_t) page_num_first        , (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x00 );
-    writew((uint32_t) (page_num_first >> 32), (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x04 );
-    writew((uint32_t) page_num_last         , (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x08 );
-    writew((uint32_t) (page_num_last >> 32) , (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x0c );
-    writew((uint32_t) page_num_base         , (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x10 );
-    writew((uint32_t) (page_num_base >> 32) , (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x14 );
-    writew((uint32_t) flags                 , (uint32_t *) occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x18 );
+    writew((uint32_t)  page_num_first        , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x00) );
+    writew((uint32_t) (page_num_first >> 32) , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x04) );
+    writew((uint32_t)  page_num_last         , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x08) );
+    writew((uint32_t) (page_num_last >> 32)  , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x0c) );
+    writew((uint32_t)  page_num_base         , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x10) );
+    writew((uint32_t) (page_num_base >> 32)  , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x14) );
+    writew((uint32_t)  flags                 , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_NARROW_REG_OFFSET + QCTL_TLB_REG_STRIDE * idx + 0x18) );
+    writew((uint32_t)  page_num_first        , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x00) );
+    writew((uint32_t) (page_num_first >> 32) , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x04) );
+    writew((uint32_t)  page_num_last         , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x08) );
+    writew((uint32_t) (page_num_last >> 32)  , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x0c) );
+    writew((uint32_t)  page_num_base         , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x10) );
+    writew((uint32_t) (page_num_base >> 32)  , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x14) );
+    writew((uint32_t)  flags                 , (uint32_t *) (occ_quad_ctrl + QCTL_TLB_WIDE_REG_OFFSET   + QCTL_TLB_REG_STRIDE * idx + 0x18) );
     return 0;
 }
 
@@ -231,11 +230,16 @@ int hero_dev_init(HeroDev *dev) {
 
     writew(mbox_ptrs_phy, occ_soc_ctrl + SCTL_SCRATCH_2_REG_OFFSET);
 
-    occamy_tlb_write(0, 0x01000000, 0x0101ffff);  // BOOTROM
-    occamy_tlb_write(1, 0x02000000, 0x02000fff);  // SoC Control
-    occamy_tlb_write(2, 0x04000000, 0x040fffff);  // CLINT
-    occamy_tlb_write(3, 0x10000000, 0x105fffff);  // Quadrants
-    occamy_tlb_write(4, 0x80000000, 0xffffffff);  // HBM0/1
+    occamy_tlb_write(0, 0x01000000, 0x0101ffff, 0x3);  // BOOTROM
+    occamy_tlb_write(1, 0x02000000, 0x02000fff, 0x3);  // SoC Control
+    occamy_tlb_write(2, 0x04000000, 0x040fffff, 0x1);  // CLINT
+    occamy_tlb_write(3, 0x10000000, 0x105fffff, 0x1);  // Quadrants
+    occamy_tlb_write(4, 0xC0000000, 0xffffffff, 0x1);  // HBM0/1
+    occamy_tlb_write(5, 0x71000000, 0x71100000, 0x1);  // SPM wide
+
+    // Enable tlb
+    writew(1, occ_quad_ctrl + 0x18);
+    writew(1, occ_quad_ctrl + 0x1c);
 
     return 0;
 }

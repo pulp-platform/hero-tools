@@ -98,6 +98,7 @@ void hero_print_timestamp();
 #define MBOX_DEVICE_START (0x02U)
 #define MBOX_DEVICE_BUSY (0x03U)
 #define MBOX_DEVICE_DONE (0x04U)
+#define MBOX_DEVICE_PRINT (0x05U)
 #define MBOX_DEVICE_STOP (0x0FU)
 #define MBOX_DEVICE_LOGLVL (0x10U)
 #define MBOX_HOST_READY (0x1000U)
