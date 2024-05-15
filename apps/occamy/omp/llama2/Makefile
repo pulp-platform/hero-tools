@@ -1,17 +1,19 @@
 ROOT := $(shell realpath ../../../..)
 
+HOST ?= sg2042
 TARGET_HOST := riscv64-hero-linux-gnu
 DEVS := hero1
 TARGET_DEVS := $(foreach dev,$(DEVS),riscv32-hero-$(dev)-elf)
 
 CSRCS = run.c matvec.c
 
-CFLAGS   += -O2
+CFLAGS   += -O3
 CFLAGS   += -v -debug -save-temps=obj
 
 ### HOST ###
 
 LDFLAGS  += -L$(ROOT)/sw/libhero/lib -lhero_occamy
+CFLAGS   += -D__HERO_HOST=$(HOST)
 
 ### DEVICE 1 ###
 
@@ -43,5 +45,13 @@ LDFLAGS  += --hero1-ld-path=$(HERO_INSTALL)/bin/ld.lld
 LDFLAGS  += -lm
 
 -include ../common/default.mk
+
+tokenizer.bin stories15M.bin:
+	wget https://github.com/karpathy/llama2.c/raw/master/tokenizer.bin
+	wget https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.bin
+
+run: tokenizer.bin stories15M.bin $(EXE)
+	./$(EXE) stories15M.bin
+
 
 .PRECIOUS: lama-hero1.OMP.ll lama-host.OMP.ll

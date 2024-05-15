@@ -1,5 +1,9 @@
-/* Inference for Llama-2 Transformer model in pure C */
 
+extern void matmul(float* xout, float* x, float* w, int n, int d);
+extern void init_hero();
+
+#ifndef __HERO_1
+/* Inference for Llama-2 Transformer model in pure C */
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -7,12 +11,12 @@
 #include <math.h>
 #include <string.h>
 #include <fcntl.h>
-#if defined _WIN32
-    #include "win.h"
-#else
-    #include <unistd.h>
-    #include <sys/mman.h>
-#endif
+#include <unistd.h>
+#include <sys/mman.h>
+#include <omp.h>
+
+#include <libhero/herodev.h>
+
 // ----------------------------------------------------------------------------
 // Transformer model
 
@@ -29,11 +33,13 @@ typedef struct {
 typedef struct {
     // token embedding table
     float* token_embedding_table;    // (vocab_size, dim)
+    uintptr_t token_embedding_table_p;
     // weights for rmsnorms
     float* rms_att_weight; // (layer, dim) rmsnorm weights
     float* rms_ffn_weight; // (layer, dim)
     // weights for matmuls. note dim == n_heads * head_size
     float* wq; // (layer, dim, n_heads * head_size)
+    uintptr_t wq_p;
     float* wk; // (layer, dim, n_kv_heads * head_size)
     float* wv; // (layer, dim, n_kv_heads * head_size)
     float* wo; // (layer, n_heads * head_size, dim)
@@ -45,20 +51,25 @@ typedef struct {
     float* rms_final_weight; // (dim,)
     // (optional) classifier weights for the logits, on the last layer
     float* wcls;
+    uintptr_t wcls_p;
 } TransformerWeights;
 
 typedef struct {
     // current wave of activations
     float *x; // activation at current time stamp (dim,)
     float *xb; // same, but inside a residual branch (dim,)
+    uintptr_t xb_p;
     float *xb2; // an additional buffer just for convenience (dim,)
     float *hb; // buffer for hidden dimension in the ffn (hidden_dim,)
     float *hb2; // buffer for hidden dimension in the ffn (hidden_dim,)
     float *q; // query (dim,)
+    uintptr_t q_p;
     float *k; // key (dim,)
     float *v; // value (dim,)
     float *att; // buffer for scores/attention values (n_heads, seq_len)
     float *logits; // output logits
+    float *logits_dev;
+    uintptr_t logits_dev_p;
     // kv cache
     float* key_cache;   // (layer, seq_len, dim)
     float* value_cache; // (layer, seq_len, dim)
@@ -79,17 +90,21 @@ void malloc_run_state(RunState* s, Config* p) {
     int kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
     s->x = calloc(p->dim, sizeof(float));
     s->xb = calloc(p->dim, sizeof(float));
+    //s->xb = hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->xb_p);
+    //memset(s->xb, 0, p->dim * sizeof(float));
     s->xb2 = calloc(p->dim, sizeof(float));
     s->hb = calloc(p->hidden_dim, sizeof(float));
     s->hb2 = calloc(p->hidden_dim, sizeof(float));
     s->q = calloc(p->dim, sizeof(float));
+    //s->q = hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->q_p);
     s->key_cache = calloc(p->n_layers * p->seq_len * kv_dim, sizeof(float));
     s->value_cache = calloc(p->n_layers * p->seq_len * kv_dim, sizeof(float));
     s->att = calloc(p->n_heads * p->seq_len, sizeof(float));
     s->logits = calloc(p->vocab_size, sizeof(float));
+    s->logits_dev = hero_dev_l3_malloc(NULL, p->vocab_size * sizeof(float), &s->logits_dev_p);
     // ensure all mallocs went fine
     if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q
-     || !s->key_cache || !s->value_cache || !s->att || !s->logits) {
+     || !s->key_cache || !s->value_cache || !s->att || !s->logits || !s->logits_dev) {
         fprintf(stderr, "malloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -108,18 +123,36 @@ void free_run_state(RunState* s) {
     free(s->value_cache);
 }
 
+float *alloc_buffer(float** mmap_ptr, unsigned int num_elems, uintptr_t *phys_ret) {
+    uintptr_t phys_ret_;
+    float *res = (float *) hero_dev_l3_malloc(NULL, num_elems*sizeof(float), &phys_ret_);
+    if(!res)
+        exit(EXIT_FAILURE);
+    memcpy(res, *mmap_ptr, num_elems*sizeof(float));
+    *phys_ret = phys_ret_;
+    *mmap_ptr += num_elems;
+    return res;
+}
+
 void memory_map_weights(TransformerWeights *w, Config* p, float* ptr, int shared_weights) {
     int head_size = p->dim / p->n_heads;
     // make sure the multiplications below are done in 64bit to fit the parameter counts of 13B+ models
     unsigned long long n_layers = p->n_layers;
+
     w->token_embedding_table = ptr;
-    ptr += p->vocab_size * p->dim;
+    w->token_embedding_table = alloc_buffer(&ptr, p->vocab_size * p->dim, &w->token_embedding_table_p);
+    //ptr += p->vocab_size * p->dim;
+    // rns
     w->rms_att_weight = ptr;
     ptr += n_layers * p->dim;
+    // wq
+    //w->wq = alloc_buffer(&ptr, n_layers * p->dim * (p->n_heads * head_size), &w->wq_p);
     w->wq = ptr;
     ptr += n_layers * p->dim * (p->n_heads * head_size);
+    // wk
     w->wk = ptr;
     ptr += n_layers * p->dim * (p->n_kv_heads * head_size);
+    // wv
     w->wv = ptr;
     ptr += n_layers * p->dim * (p->n_kv_heads * head_size);
     w->wo = ptr;
@@ -137,6 +170,8 @@ void memory_map_weights(TransformerWeights *w, Config* p, float* ptr, int shared
     ptr += p->seq_len * head_size / 2; // skip what used to be freq_cis_real (for RoPE)
     ptr += p->seq_len * head_size / 2; // skip what used to be freq_cis_imag (for RoPE)
     w->wcls = shared_weights ? w->token_embedding_table : ptr;
+    w->wcls_p = w->token_embedding_table_p;
+    printf("Shared weights : %i\n\r", shared_weights);
 }
 
 void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weights,
@@ -214,20 +249,6 @@ void softmax(float* x, int size) {
     }
 }
 
-void matmul(float* xout, float* x, float* w, int n, int d) {
-    // W (d,n) @ x (n,) -> xout (d,)
-    // by far the most amount of time is spent inside this little function
-    int i;
-    #pragma omp parallel for private(i)
-    for (i = 0; i < d; i++) {
-        float val = 0.0f;
-        for (int j = 0; j < n; j++) {
-            val += w[i * n + j] * x[j];
-        }
-        xout[i] = val;
-    }
-}
-
 float* forward(Transformer* transformer, int token, int pos) {
 
     // a few convenience variables
@@ -235,6 +256,15 @@ float* forward(Transformer* transformer, int token, int pos) {
     TransformerWeights* w = &transformer->weights;
     RunState* s = &transformer->state;
     float *x = s->x;
+    static uintptr_t x_dev_p = NULL;
+    static float *x_dev = NULL;
+    if (x_dev == NULL)
+        x_dev = (float *) hero_dev_l3_malloc(NULL, p->dim*sizeof(float), &x_dev_p);
+    if (x_dev == NULL) {
+        printf("hero_dev_l3_malloc failed!\n");
+        exit(1);
+    }
+
     int dim = p->dim;
     int kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
     int kv_mul = p->n_heads / p->n_kv_heads; // integer multiplier of the kv sharing in multiquery
@@ -258,6 +288,7 @@ float* forward(Transformer* transformer, int token, int pos) {
 
         // qkv matmuls for this position
         matmul(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
+        //matmul_snitch(s->q, s->q_p, s->xb, s->xb_p, w->wq + l*dim*dim, w->wq_p + l*dim*dim, dim, dim);
         matmul(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
         matmul(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
 
@@ -357,8 +388,15 @@ float* forward(Transformer* transformer, int token, int pos) {
     rmsnorm(x, x, w->rms_final_weight, dim);
 
     // classifier into logits
-    matmul(s->logits, x, w->wcls, p->dim, p->vocab_size);
+    memcpy(x_dev, x, p->dim*sizeof(float));
+    matmul_snitch(s->logits_dev, s->logits_dev_p, x_dev, x_dev_p, w->wcls, w->wcls_p, p->dim, p->vocab_size);
+    // for now pcie use device memory so we need to copy around
+    #if __HERO_DEV == "sg2042"
+    memcpy(s->logits, s->logits_dev, p->vocab_size * sizeof(float));
     return s->logits;
+    #endif
+
+    return s->logits_dev;
 }
 
 // ----------------------------------------------------------------------------
@@ -915,6 +953,13 @@ int main(int argc, char *argv[]) {
     unsigned long long rng_seed = 0; // seed rng with time by default
     char *mode = "generate";    // generate|chat
     char *system_prompt = NULL; // the (optional) system prompt to use in chat mode
+    long thero_0, thero_1, ttransf_0, ttransf_1;
+
+    printf("Initializing HeroSDK...");
+    thero_0 = time_in_ms();
+    init_hero();
+    thero_1 = time_in_ms();
+    printf("Done (%li ms)\n", (thero_1-thero_0));
 
     // poor man's C argparse so we can override the defaults above from the command line
     if (argc >= 2) { checkpoint_path = argv[1]; } else { error_usage(); }
@@ -941,6 +986,9 @@ int main(int argc, char *argv[]) {
     if (topp < 0.0 || 1.0 < topp) topp = 0.9;
     if (steps < 0) steps = 0;
 
+    printf("Initializing models...");
+    ttransf_0 = time_in_ms();
+
     // build the Transformer via the model .bin file
     Transformer transformer;
     build_transformer(&transformer, checkpoint_path);
@@ -953,6 +1001,14 @@ int main(int argc, char *argv[]) {
     // build the Sampler
     Sampler sampler;
     build_sampler(&sampler, transformer.config.vocab_size, temperature, topp, rng_seed);
+
+    ttransf_1 = time_in_ms();
+    printf("Done (%li ms)\n", (ttransf_1-ttransf_0));
+
+    printf("dim (%i) hidden_dim (%i) layers (%i) heads (%i) kv_heads (%i) vocab (%i) seq_len (%i)\n\r",
+    transformer.config.dim, transformer.config.hidden_dim, transformer.config.n_layers,
+    transformer.config.n_heads, transformer.config.n_kv_heads, transformer.config.vocab_size,
+    transformer.config.seq_len);
 
     // run!
     if (strcmp(mode, "generate") == 0) {
@@ -970,4 +1026,6 @@ int main(int argc, char *argv[]) {
     free_transformer(&transformer);
     return 0;
 }
+#endif
+
 #endif

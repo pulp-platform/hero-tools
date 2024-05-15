@@ -101,7 +101,7 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
                 //    val += x_l1[0][j] * w_row_l1[it%2][j + snrt_cluster_core_idx() * n];
                 //}
                 //((DTYPE *)xout_p)[i + I] = val;
-                fdotp_32(x_l1[0], &(w_row_l1[it%2][snrt_cluster_core_idx() * n]), &(((DTYPE *)xout_p)[i + I]), n);
+                fdotp_simd32b(x_l1[0], &(w_row_l1[it%2][snrt_cluster_core_idx() * n]), &(((DTYPE *)xout_p)[i + I]), n);
             end:;
             }
             it++;
@@ -126,11 +126,12 @@ int main(int argc, char *argv[]) {
     DTYPE *C_test = NULL, *D_test = NULL, *E_test;
 
     int height = 20;
+    int width = height;
 
     if (argc > 1)
         height = strtol(argv[1], NULL, 10);
-
-    int width = height;
+    if (argc > 2)
+        width = strtol(argv[2], NULL, 10);
 
     // Init Hero OpenMP runtime
     hero_add_timestamp("enter_omp_init", __func__, 1);
