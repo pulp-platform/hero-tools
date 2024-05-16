@@ -3,16 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Robert Balas <balasr@iis.ee.ethz.ch>
-//
 
 /* Description: Memory mapped register I/O access
  */
 
-#ifndef __IO_H
-#define __IO_H
+#pragma once
 
 #include <stdint.h>
-
 
 /* generic I/O write */
 static inline void writeb(uint8_t val, uintptr_t addr)
@@ -91,4 +88,3 @@ static inline uint64_t readd(const uintptr_t addr)
 		     : "memory");
 	return val;
 }
-#endif

@@ -9,3 +9,5 @@ a.out*
 *.dis
 *_off
 *.elf
+*.bin
+out.txt

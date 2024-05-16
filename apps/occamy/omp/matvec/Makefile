@@ -6,7 +6,7 @@ TARGET_DEVS := $(foreach dev,$(DEVS),riscv32-hero-$(dev)-elf)
 
 CSRCS = matvec.c
 
-CFLAGS   += -O2
+CFLAGS   += -O3
 CFLAGS   += -v -debug -save-temps=obj
 
 ### HOST ###

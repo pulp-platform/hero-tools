@@ -15,7 +15,7 @@ extern void init_hero();
 #include <sys/mman.h>
 #include <omp.h>
 
-#include <libhero/herodev.h>
+#include <libhero/hero_api.h>
 
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -258,8 +258,8 @@ float* forward(Transformer* transformer, int token, int pos) {
     float *x = s->x;
     static uintptr_t x_dev_p = NULL;
     static float *x_dev = NULL;
-    if (x_dev == NULL)
-        x_dev = (float *) hero_dev_l3_malloc(NULL, p->dim*sizeof(float), &x_dev_p);
+
+    x_dev = (float *) hero_dev_l3_malloc(NULL, p->dim*sizeof(float), &x_dev_p);
     if (x_dev == NULL) {
         printf("hero_dev_l3_malloc failed!\n");
         exit(1);
@@ -391,10 +391,12 @@ float* forward(Transformer* transformer, int token, int pos) {
     memcpy(x_dev, x, p->dim*sizeof(float));
     matmul_snitch(s->logits_dev, s->logits_dev_p, x_dev, x_dev_p, w->wcls, w->wcls_p, p->dim, p->vocab_size);
     // for now pcie use device memory so we need to copy around
-    #if __HERO_DEV == "sg2042"
+    #if __HERO_HOST == sg2042
     memcpy(s->logits, s->logits_dev, p->vocab_size * sizeof(float));
     return s->logits;
     #endif
+
+    hero_dev_l3_free(NULL, x_dev, p->dim*sizeof(float));
 
     return s->logits_dev;
 }

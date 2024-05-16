@@ -7,61 +7,16 @@
 
 #include <stdint.h>
 
-#include "o1heap.h"
 #include "libhero/debug.h"
-#include "libhero/herodev.h"
+#include "libhero/hero_api.h"
 #include "libhero/io.h"
-#include "libhero/util.h"
+#include "libhero/utils.h"
 
+#include "allocators.h"
 #include "occamy_driver.h"
+#include "driver.h"
 #include "snitch_cluster.h"
 #include "snitch_regs.h"
-
-#include <stdint.h>
-
-
-#define ALIGN_UP(x, p) (((x) + (p)-1) & ~((p)-1))
-
-extern struct O1HeapInstance *l2_heap_manager;
-extern uint64_t l2_heap_start_phy, l2_heap_start_virt, l2_heap_size;
-extern uint64_t l3_heap_start_phy, l3_heap_start_virt, l3_heap_size;
-
-uintptr_t occamy_lookup_mem(int device_fd, int mmap_id, size_t *size_b, uintptr_t *p_addr) {
-    struct card_ioctl_arg chunk;
-    chunk.mmap_id = mmap_id;
-    int err = ioctl(device_fd, IOCTL_MEM_INFOS, &chunk);
-    pr_trace("Lookup %llx %llx\n", chunk.size, chunk.result_phys_addr);
-    if (err) {
-        pr_error("Communication error from driver\n");
-        return err;
-    }
-    *size_b = chunk.size;
-    *p_addr = chunk.result_phys_addr;
-    return err;
-}
-
-int occamy_mmap(int device_fd, int mmap_id, size_t length,
-                  void **res) {
-    *res = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, device_fd,
-                mmap_id * getpagesize());
-
-    if (*res == MAP_FAILED) {
-        printf("mmap() failed %s for offset: %x length: %llx\n", strerror(errno),
-               mmap_id, length);
-        *res = NULL;
-        return -EIO;
-    }
-    return 0;
-}
-
-int occamy_lookup_mmap(int device_fd, int mmap_id, void **res) {
-    size_t phy_len = 0;
-    uintptr_t phy_base = NULL;
-
-    occamy_lookup_mem(device_fd, mmap_id, &phy_len, &phy_base);
-
-    return occamy_mmap(device_fd, mmap_id, phy_len, res);
-}
 
 static void occamy_set_isolation(int iso) {
     uint32_t mask, val;
@@ -106,7 +61,6 @@ static int occamy_tlb_write(uint32_t idx, uint64_t addr_begin, uint64_t addr_end
 }
 
 void hero_dev_reset(HeroDev *dev, unsigned full) {
-    int err;
     pr_trace("%s snitch_cluster\n", __func__);
     // Isolate
     occamy_set_isolation(1);
@@ -127,28 +81,34 @@ void hero_dev_reset(HeroDev *dev, unsigned full) {
 // with the driver
 int hero_dev_mmap(HeroDev *dev) {
     int err = 0;
+
+    char* env_libhero_log = getenv("LIBHERO_LOG");
+    if(env_libhero_log)
+        libhero_log_level = strtol(env_libhero_log, NULL, 10);
+
+    pr_trace("\n");
+
     device_fd = open("/dev/occamydev--1", O_RDWR | O_SYNC);
-    pr_trace("%s snitch_cluster\n", __func__);
+    CHECK_ASSERT(-1, device_fd > 0, "Can't open driver chardev\n");
 
     // Call card_mmap from the driver map address spaces
-    if (occamy_lookup_mmap(device_fd, SNITCH_CLUSTER_MAPID, &occ_snitch_cluster))
-        goto error_driver;
-    if (occamy_lookup_mmap(device_fd, QUADRANT_CTRL_MAPID, &occ_quad_ctrl))
-        goto error_driver;
-    if (occamy_lookup_mmap(device_fd, SOC_CTRL_MAPID, &occ_soc_ctrl))
-        goto error_driver;
-    if (occamy_lookup_mmap(device_fd, L3_MMAP_ID, &occ_l3))
-        goto error_driver;
-    if (occamy_lookup_mmap(device_fd, SCRATCHPAD_WIDE_MAPID, &occ_l2))
-        goto error_driver;
-    if (occamy_lookup_mmap(device_fd, CLINT_MAPID, &occ_clint))
+    err |= driver_lookup_mmap(device_fd, SNITCH_CLUSTER_MAPID, &occ_snitch_cluster);
+    err |= driver_lookup_mmap(device_fd, QUADRANT_CTRL_MAPID, &occ_quad_ctrl);
+    err |= driver_lookup_mmap(device_fd, SOC_CTRL_MAPID, &occ_soc_ctrl);
+    err |= driver_lookup_mmap(device_fd, L3_MMAP_ID, &occ_l3);
+    err |= driver_lookup_mmap(device_fd, SCRATCHPAD_WIDE_MAPID, &occ_l2);
+    err |= driver_lookup_mmap(device_fd, CLINT_MAPID, &occ_clint);
+
+    fflush(stdout);
+
+    if (err)
         goto error_driver;
     
     // Put the occamy tcdm in the local_mems list for OpenMP to use
     HeroSubDev_t *local_mems_tail = malloc(sizeof(HeroSubDev_t));
     size_t occ_snitch_cluster_size; 
     uintptr_t occ_snitch_cluster_phys;
-    occamy_lookup_mem(device_fd, SNITCH_CLUSTER_MAPID, &occ_snitch_cluster_size, &occ_snitch_cluster_phys);
+    driver_lookup_mem(device_fd, SNITCH_CLUSTER_MAPID, &occ_snitch_cluster_size, &occ_snitch_cluster_phys);
     if(!local_mems_tail){
         pr_error("Error when allocating local_mems_tail.\n");
         goto error_driver;
@@ -164,14 +124,12 @@ int hero_dev_mmap(HeroDev *dev) {
     // (We give the first half to openmp and the top half to o1heap)
     size_t occ_l2_size; 
     uintptr_t occ_l2_phys; 
-    occamy_lookup_mem(device_fd, SCRATCHPAD_WIDE_MAPID, &occ_l2_size, &occ_l2_phys);
+    driver_lookup_mem(device_fd, SCRATCHPAD_WIDE_MAPID, &occ_l2_size, &occ_l2_phys);
 
     // Use the upper half of the device L2 mem for the heap allocator
-    // TODO: Get phy addresses from the driver
     l2_heap_start_phy = occ_l2_phys + ALIGN_UP(occ_l2_size / 2, O1HEAP_ALIGNMENT);
     l2_heap_start_virt = occ_l2 + ALIGN_UP(occ_l2_size / 2, O1HEAP_ALIGNMENT);
     l2_heap_size = occ_l2_size / 2;
-    pr_trace("%llx %llx %llx %llx\n", occ_l2_phys, occ_l2_size, occ_l2_size / 2, l2_heap_size);
     err = hero_dev_l2_init(dev);
     if(err) {
         pr_error("Error when initializing L2 mem.\n");
@@ -179,10 +137,9 @@ int hero_dev_mmap(HeroDev *dev) {
     }
 
     // Use the L3 mem for heap allocator
-    // TODO: Get phy addresses from the driver
     size_t occ_l3_size; 
     uintptr_t occ_l3_phys; 
-    occamy_lookup_mem(device_fd, L3_MMAP_ID, &occ_l3_size, &occ_l3_phys);
+    driver_lookup_mem(device_fd, L3_MMAP_ID, &occ_l3_size, &occ_l3_phys);
     l3_heap_start_phy = occ_l3_phys + ALIGN_UP(occ_l3_size / 2, O1HEAP_ALIGNMENT);
     l3_heap_start_virt = occ_l3 + ALIGN_UP(occ_l3_size / 2, O1HEAP_ALIGNMENT);
     l3_heap_size = occ_l3_size / 2;
@@ -192,6 +149,7 @@ int hero_dev_mmap(HeroDev *dev) {
         goto end;
     }
 
+    // Give the rest of L3 to openmp
     HeroSubDev_t *l2_mems_tail = malloc(sizeof(HeroSubDev_t));
     if(!l2_mems_tail){
         pr_error("Error when allocating l2_mems_tail.\n");
@@ -214,7 +172,7 @@ end:
 }
 
 int hero_dev_init(HeroDev *dev) {
-    pr_trace("%s snitch_cluster\n", __func__);
+    pr_trace("%p\n", dev);
 
     // Allocate sw mailboxes
     hero_dev_alloc_mboxes(dev);
@@ -226,10 +184,10 @@ int hero_dev_init(HeroDev *dev) {
     mbox_ptrs->a2h_mbox = (uint32_t) dev->mboxes.a2h_mbox_mem.p_addr;
     mbox_ptrs->a2h_rb = (uint32_t) dev->mboxes.rb_mbox_mem.p_addr;
     mbox_ptrs->heap = l3_heap_start_phy;
-    // Put the mailboxes struct somewhere in L3 (unused)
-
+    // Give the poiter to the mailboxes to the device
     writew(mbox_ptrs_phy, occ_soc_ctrl + SCTL_SCRATCH_2_REG_OFFSET);
 
+    // Setup the TLBs
     occamy_tlb_write(0, 0x01000000, 0x0101ffff, 0x3);  // BOOTROM
     occamy_tlb_write(1, 0x02000000, 0x02000fff, 0x3);  // SoC Control
     occamy_tlb_write(2, 0x04000000, 0x040fffff, 0x1);  // CLINT
@@ -237,7 +195,7 @@ int hero_dev_init(HeroDev *dev) {
     occamy_tlb_write(4, 0xC0000000, 0xffffffff, 0x1);  // HBM0/1
     occamy_tlb_write(5, 0x71000000, 0x71100000, 0x1);  // SPM wide
 
-    // Enable tlb
+    // Enable the TLBs
     writew(1, occ_quad_ctrl + 0x18);
     writew(1, occ_quad_ctrl + 0x1c);
 
@@ -245,7 +203,7 @@ int hero_dev_init(HeroDev *dev) {
 }
 
 void hero_dev_exe_start(HeroDev *dev) {
-    pr_trace("%s snitch_cluster\n", __func__);
+    pr_trace("%p\n", dev);
 
     // Set entry-point, bootrom pointer and l3 layout struct pointer
     writew((uint32_t) 0xc0000000             , occ_soc_ctrl + SCTL_SCRATCH_0_REG_OFFSET);
@@ -254,32 +212,10 @@ void hero_dev_exe_start(HeroDev *dev) {
     fence();
 
     clint_set_irq(0x1FF << 1);
-    pr_trace("%s done\n", __func__);
-
 }
 
-uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) {
-    struct card_ioctl_arg chunk;
-    long err;
-    uintptr_t user_virt_address = 0;
-
-    // MMAP requires page granularity
-    chunk.size = ALIGN_UP(size_b, 0x1000);
-    pr_trace("calling ioctl\n");
-    err = ioctl(device_fd, IOCTL_DMA_ALLOC, &chunk);
-    pr_trace("done\n");
-    if (err) {
-        pr_error("%s driver allocator failed\n", __func__);
-        return NULL;
-    }
-
-    *p_addr = chunk.result_phys_addr;
-
-    if(occamy_mmap(device_fd, DMA_BUFS_MMAP_ID, size_b, &user_virt_address)) {
-        pr_error("mmap error!\n");
-    }
-
-    pr_trace("%p\n", user_virt_address);
-
-    return user_virt_address;
+int hero_dev_munmap(HeroDev *dev) {
+    int err = 0;
+    pr_trace("%p\n", dev);
+    hero_dev_free_mboxes(dev);
 }

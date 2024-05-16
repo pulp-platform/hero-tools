@@ -18,7 +18,7 @@ extern volatile uint32_t dma_wait_cycles;
 #include <time.h>
 #include <unistd.h>
 
-#include <libhero/herodev.h>
+#include <libhero/hero_api.h>
 #include <omp.h>
 #define snrt_printf printf
 
@@ -87,7 +87,7 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
             int rows_left = d - I;
             t0 = read_csr(mcycle);
             dm_wait();
-            dma_wait_cycles += read_csr(mcycle) - t0;
+            ttot += read_csr(mcycle) - t0;
             if (rows_left > 8)
                 dm_memcpy_async(w_row_l1[(it+1)%2], w_p + n * sizeof(DTYPE) * (I+8), n * MIN(rows_left - 8, 8) * sizeof(DTYPE));
 
@@ -107,7 +107,7 @@ void matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_, DTYPE *w_,
             it++;
         }
 
-        //printf("%x - dma -> %u (now:%u)\n\r", ttot, read_csr(mcycle));
+        snrt_printf("dma -> %u (now:%u)\n\r", ttot, read_csr(mcycle));
 
 #endif
 
@@ -197,6 +197,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < hero_num_dma_cycles; i++)
         printf("%u - ", hero_dma_cycles[i]);
     printf("\n");
+
+    hero_dev_l3_free(NULL, D, width  * sizeof(DTYPE));
+    hero_dev_l3_free(NULL, C, width  * height * sizeof(DTYPE));
+    hero_dev_l3_free(NULL, E, height * sizeof(DTYPE));
 
 #endif
 

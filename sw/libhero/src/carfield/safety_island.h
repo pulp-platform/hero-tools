@@ -1,7 +1,4 @@
-#ifndef SAFETY_ISLAND_H__
-#define SAFETY_ISLAND_H__
-
-#include "libhero/util.h"
+#pragma once
 
 // soc_ctrl
 #define CARFIELD_SAFETY_ISLAND_RST_OFFSET 0x28
@@ -15,31 +12,14 @@
 #define SAFETY_ISLAND_FETCH_ENABLE_OFFSET (0x00200000 + 0x4)
 #define SAFETY_ISLAND_BOOTMODE_OFFSET (0x00200000 + 0xc)
 
-// The Carfield driver device file
-int device_fd;
-
 // The virtual addresses of the hardware
-volatile void* car_soc_ctrl;
-volatile void* chs_ctrl_regs;
-volatile void* chs_idma;
-volatile void* car_safety_island;
-volatile void* car_l2_intl_0;
-volatile void* car_l2_cont_0;
-volatile void* car_l2_intl_1;
-volatile void* car_l2_cont_1;
-volatile void* car_l3;
+extern volatile void* car_soc_ctrl;
+extern volatile void* chs_ctrl_regs;
+extern volatile void* chs_idma;
+extern volatile void* car_safety_island;
+extern volatile void* car_l2_intl_0;
+extern volatile void* car_l2_cont_0;
+extern volatile void* car_l2_intl_1;
+extern volatile void* car_l2_cont_1;
+extern volatile void* car_l3;
 
-// Physical addresses
-uintptr_t             car_pcie_axi_bar_phys;
-
-
-void car_set_isolate(uint32_t status)
-{
-    writew(status, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_ISOLATE_OFFSET);
-    fence();
-    while (readw(car_soc_ctrl + CARFIELD_SAFETY_ISLAND_ISOLATE_STATUS_OFFSET) !=
-	   status)
-	;
-}
-
-#endif // SAFETY_ISLAND_H__

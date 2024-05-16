@@ -4,23 +4,27 @@
 //
 // Cyril Koenig <cykoenig@iis.ee.ethz.ch>
 
+#pragma once
+
 #include <stdint.h>
 
-#include "o1heap.h"
 #include "libhero/debug.h"
 #include "libhero/herodev.h"
 #include "libhero/io.h"
 #include "libhero/util.h"
-#include "safety_island.h"
 
 #include "carfield_driver.h"
+#include "driver.h"
+#include "safety_island.h"
 
-#define ALIGN_UP(x, p) (((x) + (p)-1) & ~((p)-1))
-
-extern struct O1HeapInstance *l2_heap_manager;
-extern uint64_t l2_heap_start_phy, l2_heap_start_virt, l2_heap_size;
-extern uint64_t l3_heap_start_phy, l3_heap_start_virt, l3_heap_size;
-
+void car_set_isolate(uint32_t status)
+{
+    writew(status, car_soc_ctrl + CARFIELD_SAFETY_ISLAND_ISOLATE_OFFSET);
+    fence();
+    while (readw(car_soc_ctrl + CARFIELD_SAFETY_ISLAND_ISOLATE_STATUS_OFFSET) !=
+	   status)
+	;
+}
 
 uintptr_t carfield_lookup_mem(int device_fd, int mmap_id, size_t *size_b, uintptr_t *p_addr) {
     struct card_ioctl_arg chunk;
@@ -249,29 +253,4 @@ int hero_dev_init(HeroDev *dev) {
     writew(dev->mboxes.h2a_mbox_mem.p_addr, chs_ctrl_regs + 0x0);
     writew(dev->mboxes.a2h_mbox_mem.p_addr, chs_ctrl_regs + 0x4);
     return 0;
-}
-
-int hero_dev_dma_2d_memcpy(HeroDev *dev, uint64_t dst, uint64_t src, uint64_t size,
-                                     uint64_t dst_stride, uint64_t src_stride,
-                                     uint64_t num_reps) {
-    pr_trace("%s safety_island implementation\n", __func__);
-    pr_trace("chs_idma = %lx (src=%llx dst=%llx)\n", chs_idma, src, dst);
-    *(uint64_t*)(chs_idma + 0x0) = (uint64_t)src;
-    *(uint64_t*)(chs_idma + 0x8) = (uint64_t)dst;
-    *(uint64_t*)(chs_idma + 0x10) = size;
-    *(uint64_t*)(chs_idma + 0x18) = 0x0;
-    *(uint64_t*)(chs_idma + 0x38) = src_stride;
-    *(uint64_t*)(chs_idma + 0x40) = dst_stride;
-    *(uint64_t*)(chs_idma + 0x48) = num_reps;
-    return *(uint64_t*)(chs_idma + 0x28);
-}
-
-void hero_dev_dma_2d_blk_memcpy(HeroDev *dev, uint64_t dst, uint64_t src, uint64_t size,
-                                     uint64_t dst_stride, uint64_t src_stride,
-                                     uint64_t num_reps) {
-    volatile uint64_t tf_id =
-        hero_dev_dma_2d_memcpy(dev, dst, src, size, dst_stride, src_stride, num_reps);
-    while (*(uint64_t*)(chs_idma + 0x20) != 1) {
-        asm volatile("nop");
-    }
 }

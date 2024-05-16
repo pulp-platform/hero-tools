@@ -1,7 +1,5 @@
 #pragma once
 
-#include "libhero/util.h"
-
 // The virtual addresses of the hardware
 static volatile void* occ_quad_ctrl;
 static volatile void* occ_soc_ctrl;
@@ -17,6 +15,3 @@ struct l3_layout {
   uint32_t heap;
 };
 
-
-// The Occamy driver device file
-int device_fd;
