@@ -1,7 +1,7 @@
 #ifndef SAFETY_ISLAND_H__
 #define SAFETY_ISLAND_H__
 
-#include "libhero/util.h"
+#include "libhero/utils.h"
 
 // soc_ctrl
 #define CARFIELD_SAFETY_ISLAND_RST_OFFSET 0x28
@@ -43,10 +43,6 @@
 #define CARFIELD_MBOX_HOST_2_SPATZ_1_LETTER_0     0x380
 #define CARFIELD_MBOX_HOST_2_SPATZ_1_LETTER_1     0x38C
 
-
-
-// The Carfield driver device file
-int device_fd;
 
 // The virtual addresses of the hardware
 volatile void* car_soc_ctrl;

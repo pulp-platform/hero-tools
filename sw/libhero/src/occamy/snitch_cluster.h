@@ -14,4 +14,3 @@ struct l3_layout {
   uint32_t h2a_mbox;
   uint32_t heap;
 };
-

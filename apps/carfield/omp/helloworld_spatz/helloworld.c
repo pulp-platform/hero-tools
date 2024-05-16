@@ -4,7 +4,7 @@
 #include "omp.h"
 ////// HOST includes /////
 #else
-#include <libhero/herodev.h>
+#include <libhero/hero_api.h>
 #include <omp.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -71,7 +71,7 @@ void hero_print_timestamp() {
     printf("info function time diff\n");
     struct timespec diff = {0};
     for(int i = 0; i < hero_num_timestamps; i++) {
-        if (i < hero_num_hero_timestamps - 1)
+        if (i < hero_num_timestamps - 1)
             sub_timespec(hero_timestamps[i].timespec, hero_timestamps[i+1].timespec, &diff);
         printf("%s %s %d.%.9ld %ld.%.9ld\n", hero_timestamps[i].str_info, hero_timestamps[i].str_func, hero_timestamps[i].timespec.tv_sec, hero_timestamps[i].timespec.tv_nsec, diff.tv_sec, diff.tv_nsec);
     }

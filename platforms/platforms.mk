@@ -175,7 +175,7 @@ hero-safety-sw-clean:
 # Spatz SW #
 ############
 
-$(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/sw/build/spatzBenchmarks/libomptarget.a: FORCE
+$(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/sw/build/spatzBenchmarks/libomptarget.a: $(HERO_SPATZ_ROOT)/Bender.yml FORCE
 	LLVM_INSTALL_DIR=$(HERO_INSTALL) GCC_INSTALL_DIR=/usr/pack/riscv-1.0-kgf/pulp-gcc-2.6.0 \
 	SPATZ_CLUSTER_CFG=$(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/cfg/carfield.hjson \
 	make -C $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster sw

@@ -218,4 +218,5 @@ int hero_dev_munmap(HeroDev *dev) {
     int err = 0;
     pr_trace("%p\n", dev);
     hero_dev_free_mboxes(dev);
+    close(device_fd);
 }

@@ -17,9 +17,8 @@ extern volatile uint32_t dma_wait_cycles;
 #include <time.h>
 #include <unistd.h>
 
-#include <libhero/herodev.h>
+#include <libhero/hero_api.h>
 #include <omp.h>
-#define snrt_printf printf
 
 static inline void fence() { asm volatile("fence" ::: "memory"); }
 
@@ -155,7 +154,7 @@ int main(int argc, char *argv[]) {
 
 
 #ifndef __HERO_1
-#ifdef VERIFY
+
     // Execution on host
     char toprint[128];
     snprintf(toprint, 128, "enter_omp_verify_matvec-%u", width);
@@ -176,7 +175,6 @@ int main(int argc, char *argv[]) {
             if(E_test[i] != E[i])
                 printf("nope %i\n\r", i);
     }
-#endif
 
     // Print all the recorded timestamps
     hero_print_timestamp();
