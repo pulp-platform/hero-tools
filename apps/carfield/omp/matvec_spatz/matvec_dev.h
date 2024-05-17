@@ -35,3 +35,13 @@ float fdotp_v32b(const float *a, const float *b, unsigned int avl) {
   asm volatile("vfmv.f.s %0, v0" : "=f"(red));
   return red;
 }
+
+float fdotp_32(const float *a, const float *b, unsigned int avl) {
+  float val = 0.0;
+
+  for(int i = 0; i < avl; i++) {
+    val += a[i] * b[i];
+  }
+
+  return val;
+}
