@@ -18,6 +18,15 @@
 
 #define ALIGN_UP(x, p) (((x) + (p)-1) & ~((p)-1))
 
+void car_set_isolate(uint32_t status)
+{
+    writew(status, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_ISOLATE_OFFSET);
+    fence();
+    while (readw(car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_ISOLATE_STATUS_OFFSET) !=
+	   status)
+	;
+}
+
 void hero_dev_reset(HeroDev *dev, unsigned full) {
     int err;
     // Isolate

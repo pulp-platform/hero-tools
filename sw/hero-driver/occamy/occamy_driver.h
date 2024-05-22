@@ -1,16 +1,14 @@
 #ifndef __CARFIELD_DRIVER_H
 #define __CARFIELD_DRIVER_H
 
-#include <linux/fs.h>
-
 // Memmap offsets, used for mmap and ioctl
-#define SOC_CTRL_MAPID 0
-#define L3_MMAP_ID 1
-#define QUADRANT_CTRL_MAPID 2
-#define DMA_BUFS_MMAP_ID 10000
-#define CLINT_MAPID 5
-#define SNITCH_CLUSTER_MAPID 100
-#define SCRATCHPAD_WIDE_MAPID 10
+#define SOC_CTRL_MMAP_ID 0
+#define DMA_BUFS_MMAP_ID 1
+#define L3_MMAP_ID 2
+#define QUADRANT_CTRL_MMAP_ID 3
+#define CLINT_MMAP_ID 5
+#define SNITCH_CLUSTER_MMAP_ID 100
+#define SCRATCHPAD_WIDE_MMAP_ID 10
 
 // TODO: Define properly with the Linux API
 #define IOCTL_DMA_ALLOC 0
@@ -18,12 +16,12 @@
 
 #define PTR_TO_DEVDATA_REGION(VAR,DEVDATA,X) \
     switch(X) { \
-        case(SOC_CTRL_MAPID         ): VAR = &DEVDATA->soc_ctrl_mem         ; break; \
-        case(QUADRANT_CTRL_MAPID    ): VAR = &DEVDATA->quadrant_ctrl_mem    ; break; \
-        case(CLINT_MAPID            ): VAR = &DEVDATA->clint_mem            ; break; \
-        case(SNITCH_CLUSTER_MAPID   ): VAR = &DEVDATA->snitch_cluster_mem   ; break; \
-        case(SCRATCHPAD_WIDE_MAPID  ): VAR = &DEVDATA->spm_wide_mem         ; break; \
-        case(L3_MMAP_ID             ): VAR = &DEVDATA->l3_mem               ; break; \
+        case(SOC_CTRL_MMAP_ID         ): VAR = &DEVDATA->soc_ctrl_mem         ; break; \
+        case(QUADRANT_CTRL_MMAP_ID    ): VAR = &DEVDATA->quadrant_ctrl_mem    ; break; \
+        case(CLINT_MMAP_ID            ): VAR = &DEVDATA->clint_mem            ; break; \
+        case(SNITCH_CLUSTER_MMAP_ID   ): VAR = &DEVDATA->snitch_cluster_mem   ; break; \
+        case(SCRATCHPAD_WIDE_MMAP_ID  ): VAR = &DEVDATA->spm_wide_mem         ; break; \
+        case(L3_MMAP_ID               ): VAR = &DEVDATA->l3_mem               ; break; \
         default                      : VAR = NULL                           ; break; \
     }
 

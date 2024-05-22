@@ -16,7 +16,6 @@
 #include "occamy_driver.h"
 #include "driver.h"
 #include "snitch_cluster.h"
-#include "snitch_regs.h"
 
 static void occamy_set_isolation(int iso) {
     uint32_t mask, val;

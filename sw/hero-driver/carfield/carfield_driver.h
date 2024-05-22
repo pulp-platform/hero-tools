@@ -1,6 +1,7 @@
 #ifndef __CARFIELD_DRIVER_H
 #define __CARFIELD_DRIVER_H
 
+// Memmap offsets, used for mmap and ioctl
 #define SOC_CTRL_MMAP_ID 0
 #define DMA_BUFS_MMAP_ID 1
 #define L3_MMAP_ID 2

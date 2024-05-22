@@ -310,6 +310,9 @@ int main(int argc, char *argv[]) {
     hero_dev_l3_free(NULL, D, width  * sizeof(DTYPE));
     hero_dev_l3_free(NULL, C, width  * height * sizeof(DTYPE));
     hero_dev_l3_free(NULL, E, height * sizeof(DTYPE));
+    free(C_test);
+    free(D_test);
+    free(E_test);
 
 #endif
 

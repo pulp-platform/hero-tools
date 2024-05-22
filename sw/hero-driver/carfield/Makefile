@@ -17,8 +17,8 @@ CROSS_COMPILE_BUILDROOT ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu
 ARCH := riscv
 
 # Linux compilation arguments
-obj-m := carfield_driver.o
-carfield_driver-objs := ../common/hero_utils.o
+obj-m := carfield.o
+carfield-objs := carfield_driver.o carfield_fops.o
 ccflags-y += -I$(src)/../common
 
 .PHONY: all dis clean build

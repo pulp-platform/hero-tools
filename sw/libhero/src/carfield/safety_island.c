@@ -4,8 +4,6 @@
 //
 // Cyril Koenig <cykoenig@iis.ee.ethz.ch>
 
-#pragma once
-
 #include <stdint.h>
 
 #include "libhero/debug.h"
@@ -17,7 +15,6 @@
 #include "carfield_driver.h"
 #include "driver.h"
 #include "safety_island.h"
-#include "snitch_regs.h"
 
 void car_set_isolate(uint32_t status)
 {
@@ -57,6 +54,11 @@ void hero_dev_reset(HeroDev *dev, unsigned full) {
 // with the driver
 int hero_dev_mmap(HeroDev *dev) {
     int err = 0;
+
+    char* env_libhero_log = getenv("LIBHERO_LOG");
+    if(env_libhero_log)
+        libhero_log_level = strtol(env_libhero_log, NULL, 10);
+
     device_fd = open("/dev/cardev--1", O_RDWR | O_SYNC);
     pr_trace("%s safety_island\n", __func__);
     // Call card_mmap from the driver map address spaces
@@ -191,4 +193,11 @@ int hero_dev_init(HeroDev *dev) {
     writew(dev->mboxes.h2a_mbox_mem.p_addr, chs_ctrl_regs + 0x0);
     writew(dev->mboxes.a2h_mbox_mem.p_addr, chs_ctrl_regs + 0x4);
     return 0;
+}
+
+int hero_dev_munmap(HeroDev *dev) {
+    int err = 0;
+    pr_trace("%p\n", dev);
+    hero_dev_free_mboxes(dev);
+    close(device_fd);
 }

@@ -1,7 +1,4 @@
-#ifndef SAFETY_ISLAND_H__
-#define SAFETY_ISLAND_H__
-
-#include "libhero/utils.h"
+#pragma once
 
 // soc_ctrl
 #define CARFIELD_SAFETY_ISLAND_RST_OFFSET 0x28
@@ -57,17 +54,3 @@ volatile void* car_l2_intl_1;
 volatile void* car_l2_cont_1;
 volatile void* car_l3;
 
-// Physical addresses
-uintptr_t             car_pcie_axi_bar_phys;
-
-
-void car_set_isolate(uint32_t status)
-{
-    writew(status, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_ISOLATE_OFFSET);
-    fence();
-    while (readw(car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_ISOLATE_STATUS_OFFSET) !=
-	   status)
-	;
-}
-
-#endif // SAFETY_ISLAND_H__

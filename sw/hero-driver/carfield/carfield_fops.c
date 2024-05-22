@@ -19,8 +19,8 @@
 #include <linux/dmapool.h>
 #include <linux/log2.h>
 
-#include "occamy_driver.h"
-#include "occamy.h"
+#include "carfield_driver.h"
+#include "carfield.h"
 
 ssize_t card_read(struct file *filp, char __user *buff, size_t count,
                   loff_t *f_pos) {
@@ -87,20 +87,38 @@ int card_mmap(struct file *filp, struct vm_area_struct *vma) {
     case SOC_CTRL_MMAP_ID:
         MAP_DEVICE_REGION("soc_ctrl", soc_ctrl_mem);
         break;
-    case QUADRANT_CTRL_MMAP_ID:
-        MAP_DEVICE_REGION("quadrant_ctrl", quadrant_ctrl_mem);
-        break;
-    case CLINT_MMAP_ID:
-        MAP_DEVICE_REGION("clint", clint_mem);
-        break;
-    case SNITCH_CLUSTER_MMAP_ID:
-        MAP_DEVICE_REGION("snitch_cluster", snitch_cluster_mem);
-        break;
-    case SCRATCHPAD_WIDE_MMAP_ID:
-        MAP_DEVICE_REGION("spm_wide", spm_wide_mem);
+    case MBOXES_MMAP_ID:
+        MAP_DEVICE_REGION("mboxes", mboxes_mem);
         break;
     case L3_MMAP_ID:
-        MAP_DEVICE_REGION("l3_mem", l3_mem);
+        MAP_DEVICE_REGION("l3", l3_mem);
+        break;
+    case CTRL_REGS_MMAP_ID:
+        MAP_DEVICE_REGION("ctrl_regs", ctrl_regs_mem);
+        break;
+    case L2_INTL_0_MMAP_ID:
+        MAP_DEVICE_REGION("l2_intl_0", l2_intl_0_mem);
+        break;
+    case L2_CONT_0_MMAP_ID:
+        MAP_DEVICE_REGION("l2_cont_0", l2_cont_0_mem);
+        break;
+    case L2_INTL_1_MMAP_ID:
+        MAP_DEVICE_REGION("l2_intl_1", l2_intl_1_mem);
+        break;
+    case L2_CONT_1_MMAP_ID:
+        MAP_DEVICE_REGION("l2_cont_1", l2_cont_1_mem);
+        break;
+    case SPATZ_CLUSTER_MMAP_ID:
+        MAP_DEVICE_REGION("spatz_cluster", spatz_cluster_mem);
+        break;
+    case INTEGER_CLUSTER_MMAP_ID:
+        MAP_DEVICE_REGION("integer_cluster", integer_cluster_mem);
+        break;
+    case SAFETY_ISLAND_MMAP_ID:
+        MAP_DEVICE_REGION("safety_island", safety_island_mem);
+        break;
+    case IDMA_MMAP_ID:
+        MAP_DEVICE_REGION("idma", idma_mem);
         break;
     case DMA_BUFS_MMAP_ID:
         strncpy(type, "buffer", sizeof(type));
