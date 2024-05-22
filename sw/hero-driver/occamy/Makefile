@@ -1,23 +1,19 @@
 # Copyright 2020 ETH Zurich and University of Bologna.
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
-#
-# Cyril Koenig <cykoenig@iis.ee.ethz.ch>
 
-# Build this driver for the current host
-NATIVE        := 0
+HERO_ROOT = $(realpath ../../..)
 
-BR_OUTPUT_DIR ?= $(realpath ../../../cva6-sdk/buildroot/output/)
+# Platform BUILDROOT : cross compile driver for the FPGA
+#          NATIVE    : compile driver for this machine
+PLATFORM ?= BUILDROOT
 
-ifeq ($(NATIVE),0)
-CROSS_COMPILE ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu-
-KERNEL_DIR    ?= $(BR_OUTPUT_DIR)/build/linux-6.1.22
-else
-CROSS_COMPILE ?=
-KERNEL_DIR    ?= /lib/modules/$(shell uname -r)/build
-endif
+KERNEL_DIR_NATIVE := /lib/modules/$(shell uname -r)/build
+KERNEL_DIR_BUILDROOT := $(BR_LINUX_DIR)
 
-ARCH          := riscv
+BR_OUTPUT_DIR ?= $(HERO_ROOT)/cva6-sdk/buildroot/output/
+CROSS_COMPILE_NATIVE ?=
+CROSS_COMPILE_BUILDROOT ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu-
 
 obj-m := occamy.o
 occamy-objs := occamy_driver.o occamy_fops.o
@@ -26,7 +22,7 @@ all: modules
 build: modules
 
 modules:
-	make ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KERNEL_DIR) M=$(shell pwd) modules
+	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE_$(PLATFORM)) -C $(KERNEL_DIR_$(PLATFORM)) M=$(shell pwd) ARCH=riscv modules
 
 dis: modules
 	$(CROSS_COMPILE)objdump -DS occamy.ko > occamy.ko.dump

@@ -20,13 +20,13 @@ AR          := $(CROSS_COMPILE)ar
 OBJDUMP     := $(CROSS_COMPILE)objdump
 
 # Platform specific variables
-CFLAGS_safety_island := -I src/carfield -I $(HERO_ROOT)/cva6-sdk/sw/drivers/carfield
+CFLAGS_safety_island := -I src/carfield -I $(HERO_ROOT)/sw/hero-driver/carfield
 SRCS_safety_island := src/carfield/safety_island.c
 
-CFLAGS_spatz_cluster := -I src/carfield -I $(HERO_ROOT)/cva6-sdk/sw/drivers/carfield
+CFLAGS_spatz_cluster := -I src/carfield -I $(HERO_ROOT)/sw/hero-driver/carfield
 SRCS_spatz_cluster := src/carfield/spatz_cluster.c
 
-CFLAGS_occamy := -I src/occamy -I $(HERO_ROOT)/cva6-sdk/sw/drivers/occamy
+CFLAGS_occamy := -I src/occamy -I $(HERO_ROOT)/sw/hero-driver/occamy
 SRCS_occamy := src/occamy/snitch_cluster.c
 
 # Host specific variables

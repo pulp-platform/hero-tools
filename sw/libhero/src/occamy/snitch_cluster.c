@@ -91,12 +91,12 @@ int hero_dev_mmap(HeroDev *dev) {
     CHECK_ASSERT(-1, device_fd > 0, "Can't open driver chardev\n");
 
     // Call card_mmap from the driver map address spaces
-    err |= driver_lookup_mmap(device_fd, SNITCH_CLUSTER_MAPID, &occ_snitch_cluster);
-    err |= driver_lookup_mmap(device_fd, QUADRANT_CTRL_MAPID, &occ_quad_ctrl);
-    err |= driver_lookup_mmap(device_fd, SOC_CTRL_MAPID, &occ_soc_ctrl);
+    err |= driver_lookup_mmap(device_fd, SNITCH_CLUSTER_MMAP_ID, &occ_snitch_cluster);
+    err |= driver_lookup_mmap(device_fd, QUADRANT_CTRL_MMAP_ID, &occ_quad_ctrl);
+    err |= driver_lookup_mmap(device_fd, SOC_CTRL_MMAP_ID, &occ_soc_ctrl);
     err |= driver_lookup_mmap(device_fd, L3_MMAP_ID, &occ_l3);
-    err |= driver_lookup_mmap(device_fd, SCRATCHPAD_WIDE_MAPID, &occ_l2);
-    err |= driver_lookup_mmap(device_fd, CLINT_MAPID, &occ_clint);
+    err |= driver_lookup_mmap(device_fd, SCRATCHPAD_WIDE_MMAP_ID, &occ_l2);
+    err |= driver_lookup_mmap(device_fd, CLINT_MMAP_ID, &occ_clint);
 
     fflush(stdout);
 
@@ -107,7 +107,7 @@ int hero_dev_mmap(HeroDev *dev) {
     HeroSubDev_t *local_mems_tail = malloc(sizeof(HeroSubDev_t));
     size_t occ_snitch_cluster_size; 
     uintptr_t occ_snitch_cluster_phys;
-    driver_lookup_mem(device_fd, SNITCH_CLUSTER_MAPID, &occ_snitch_cluster_size, &occ_snitch_cluster_phys);
+    driver_lookup_mem(device_fd, SNITCH_CLUSTER_MMAP_ID, &occ_snitch_cluster_size, &occ_snitch_cluster_phys);
     if(!local_mems_tail){
         pr_error("Error when allocating local_mems_tail.\n");
         goto error_driver;
@@ -123,7 +123,7 @@ int hero_dev_mmap(HeroDev *dev) {
     // (We give the first half to openmp and the top half to o1heap)
     size_t occ_l2_size; 
     uintptr_t occ_l2_phys; 
-    driver_lookup_mem(device_fd, SCRATCHPAD_WIDE_MAPID, &occ_l2_size, &occ_l2_phys);
+    driver_lookup_mem(device_fd, SCRATCHPAD_WIDE_MMAP_ID, &occ_l2_size, &occ_l2_phys);
 
     // Use the upper half of the device L2 mem for the heap allocator
     l2_heap_start_phy = occ_l2_phys + ALIGN_UP(occ_l2_size / 2, O1HEAP_ALIGNMENT);
