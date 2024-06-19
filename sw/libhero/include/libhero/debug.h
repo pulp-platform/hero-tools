@@ -35,9 +35,6 @@ extern uint32_t hero_device_cycles[MAX_TIMESTAMPS];
 extern int hero_num_dma_cycles;
 extern uint32_t hero_dma_cycles[MAX_TIMESTAMPS];
 
-void hero_add_timestamp(char str_info[32], char str_func[32], int add_to_trace);
-void hero_print_timestamp();
-
 /////////////////////
 ///// LOGGING  //////
 /////////////////////

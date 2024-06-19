@@ -1,6 +1,6 @@
 #include <time.h>
 
-#include "libhero/herodev.h"
+#include "libhero/hero_api.h"
 
 int main() {
     HeroDev hero_dev;

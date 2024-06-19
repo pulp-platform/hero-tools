@@ -1,23 +1,28 @@
 #include <asm/io.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/interrupt.h>
+#include <linux/iommu.h>
+#include <linux/iova.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/kdev_t.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/of_irq.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/irqdesc.h>
-#include <linux/dma-mapping.h>
+// drivers/iommu/riscv
+#include "iommu-bits.h"
 
-#include "carfield_driver.h"
 #include "carfield.h"
+#include "carfield_driver.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pulp Platform");
@@ -67,24 +72,27 @@ int probe_node(struct platform_device *pdev,
 
         // Check for reserved L3 memory
         tmp_mem_np = of_parse_phandle(tmp_np, "memory-region", 0);
-        if(tmp_mem_np) {
-            if(of_address_to_resource(tmp_mem_np, 0, &tmp_mem_res)) {
+        if (tmp_mem_np) {
+            if (of_address_to_resource(tmp_mem_np, 0, &tmp_mem_res)) {
                 pr_err("of_address_to_resource error\n");
                 goto probe_node_error;
             }
-            if(dev_data->l3_mem.pbase && dev_data->l3_mem.pbase != tmp_mem_res.start) {
+            if (dev_data->l3_mem.pbase &&
+                dev_data->l3_mem.pbase != tmp_mem_res.start) {
                 pr_err("I do not support multiple L3 memory regions\n");
             }
-            if(!dev_data->l3_mem.pbase) {
-                dev_data->l3_mem.vbase = devm_ioremap_resource(&pdev->dev, &tmp_mem_res);
+            if (!dev_data->l3_mem.pbase) {
+                dev_data->l3_mem.vbase =
+                    devm_ioremap_resource(&pdev->dev, &tmp_mem_res);
                 if (!dev_data->l3_mem.vbase)
                     goto probe_node_error;
                 dev_data->l3_mem.pbase = tmp_mem_res.start;
                 dev_data->l3_mem.size = resource_size(&tmp_mem_res);
                 // Save the informations in the char device (for card_read)
-                dev_data->buffer_size += sprintf(
-                    dev_data->buffer + dev_data->buffer_size, "%s: %px size = %x\n",
-                    tmp_mem_np->name, dev_data->l3_mem.pbase, dev_data->l3_mem.size);
+                dev_data->buffer_size +=
+                    sprintf(dev_data->buffer + dev_data->buffer_size,
+                            "%s: %px size = %x\n", tmp_mem_np->name,
+                            dev_data->l3_mem.pbase, dev_data->l3_mem.size);
             }
             pr_info("Found reserved mem\n");
         }
@@ -98,13 +106,14 @@ int probe_node(struct platform_device *pdev,
         } else {
             result->pbase = tmp_res.start;
             result->size = resource_size(&tmp_res);
-            pr_info("Allocated %s io-region (%llx %llx -> %llx)\n", name, result->pbase, result->size, result->vbase);
+            pr_info("Allocated %s io-region (%llx %llx -> %llx)\n", name,
+                    result->pbase, result->size, result->vbase);
             // Try to access the first address
             pr_info("Probing %s : (%llx)\n", name, (uint32_t *)result->vbase);
             pr_info(" %x\n", *((uint32_t *)result->vbase));
             if (*((uint32_t *)result->vbase) == 0xbadcab1e) {
                 pr_warn("%s not found in hardware (0xbadcab1e)!\n", name);
-                *result = (struct shared_mem) { 0 };
+                *result = (struct shared_mem){0};
             }
             // Save the informations in the char device (for card_read)
             dev_data->buffer_size += sprintf(
@@ -116,7 +125,7 @@ int probe_node(struct platform_device *pdev,
         pr_err("No %s in device tree\n", name);
     }
 probe_node_error:
-    *result = (struct shared_mem) { 0 };
+    *result = (struct shared_mem){0};
     return -1;
 }
 
@@ -124,6 +133,8 @@ probe_node_error:
 int card_platform_driver_probe(struct platform_device *pdev) {
     int ret, irq, i;
     struct cardev_private_data *dev_data;
+    struct irq_desc *tmp_irq_desc;
+    struct device *spatz_dev;
 
     pr_debug("A device is detected \n");
 
@@ -139,10 +150,11 @@ int card_platform_driver_probe(struct platform_device *pdev) {
     pr_debug("Device size = %d\n", PDATA_SIZE);
     pr_debug("Device permission = %d\n", PDATA_PERM);
     pr_debug("Device serial number = %s\n", PDATA_SERIAL);
-    pr_debug("platform_device(%p) : name=%s ; id=%i ; id_auto=%i ; dev=%p(%s) ; "
-            "num_ressources=%i ; id_entry=%p\n",
-            pdev, pdev->name, pdev->id, pdev->id_auto, pdev->dev,
-            pdev->dev.init_name, pdev->num_resources, pdev->id_entry);
+    pr_debug(
+        "platform_device(%p) : name=%s ; id=%i ; id_auto=%i ; dev=%p(%s) ; "
+        "num_ressources=%i ; id_entry=%p\n",
+        pdev, pdev->name, pdev->id, pdev->id_auto, pdev->dev,
+        pdev->dev.init_name, pdev->num_resources, pdev->id_entry);
 
     /* Dynamically allocate memory for the device buffer using size information
      * from the platform data */
@@ -176,8 +188,6 @@ int card_platform_driver_probe(struct platform_device *pdev) {
 
     // Probe gpio and activate rising edge interrupts
     probe_node(pdev, dev_data, &dev_data->gpio_mem, "gpio");
-    *((uint32_t *)(dev_data->gpio_mem.vbase + 0x04)) = (uint32_t)0xffffffff;
-    *((uint32_t *)(dev_data->gpio_mem.vbase + 0x34)) = (uint32_t)0xffffffff;
 
     // Request gpio irqs
     // TODO: Do not do that if running on PCIe host
@@ -189,7 +199,13 @@ int card_platform_driver_probe(struct platform_device *pdev) {
                           pdev);
         if (ret)
             pr_err("Request gpio irq %i failed with: %i\n", i, ret);
+        tmp_irq_desc = irq_data_to_desc(irq_get_irq_data(irq));
+        pr_info("Request gpio irq %i (%i) : %i\n", irq,
+                tmp_irq_desc->irq_data.hwirq, ret);
     }
+
+    *((uint32_t *)(dev_data->gpio_mem.vbase + 0x04)) = (uint32_t)0xffffffff;
+    *((uint32_t *)(dev_data->gpio_mem.vbase + 0x34)) = (uint32_t)0xffffffff;
 
     // Deisolate all islands
     for (i = ISOLATE_BEGIN_OFFSET; i < ISOLATE_END_OFFSET; i += 4)
@@ -199,10 +215,19 @@ int card_platform_driver_probe(struct platform_device *pdev) {
     probe_node(pdev, dev_data, &dev_data->safety_island_mem, "safety-island");
 
     // Probe integer_cluster
-    probe_node(pdev, dev_data, &dev_data->integer_cluster_mem, "integer-cluster");
+    probe_node(pdev, dev_data, &dev_data->integer_cluster_mem,
+               "integer-cluster");
 
     // Probe spatz_cluster
     probe_node(pdev, dev_data, &dev_data->spatz_cluster_mem, "spatz-cluster");
+    spatz_dev = &of_find_device_by_node(
+                     of_get_child_by_name(pdev->dev.of_node, "spatz-cluster"))
+                     ->dev;
+    if (spatz_dev) {
+        if (dma_set_mask_and_coherent(spatz_dev, DMA_BIT_MASK(32))) {
+            pr_err("Cannot get DMA for Spatz\n");
+        }
+    }
 
     // Probe L2
     probe_node(pdev, dev_data, &dev_data->l2_intl_0_mem, "l2-intl-0");
@@ -212,6 +237,58 @@ int card_platform_driver_probe(struct platform_device *pdev) {
 
     // Probe L3
     probe_node(pdev, dev_data, &dev_data->l3_mem, "l3-buffer");
+
+    // IOMMU region list
+    INIT_LIST_HEAD(&dev_data->iommu_region_list);
+
+    // Get IOMMU
+    if (iommu_present(&platform_bus_type)) {
+        dev_data->iommu_domain = iommu_domain_alloc(&platform_bus_type);
+        if (!dev_data->iommu_domain) {
+            pr_err("Cannot allocate iommu_domain\n");
+            return -ENOMEM;
+        }
+
+        ret = iommu_attach_device(dev_data->iommu_domain, spatz_dev);
+        if (ret) {
+            iommu_domain_free(dev_data->iommu_domain);
+            pr_err("iommu_attach_device failed\n");
+            return ret;
+        }
+
+        ret = iommu_map(dev_data->iommu_domain, dev_data->l2_intl_0_mem.pbase,
+                        dev_data->l2_intl_0_mem.pbase,
+                        dev_data->l2_intl_0_mem.size, IOMMU_READ | IOMMU_WRITE,
+                        GFP_KERNEL);
+        ret = iommu_map(dev_data->iommu_domain, dev_data->l2_cont_0_mem.pbase,
+                        dev_data->l2_cont_0_mem.pbase,
+                        dev_data->l2_cont_0_mem.size, IOMMU_READ | IOMMU_WRITE,
+                        GFP_KERNEL);
+        ret = iommu_map(
+            dev_data->iommu_domain, dev_data->spatz_cluster_mem.pbase,
+            dev_data->spatz_cluster_mem.pbase, dev_data->spatz_cluster_mem.size,
+            IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+        ret =
+            iommu_map(dev_data->iommu_domain, dev_data->soc_ctrl_mem.pbase,
+                      dev_data->soc_ctrl_mem.pbase, dev_data->soc_ctrl_mem.size,
+                      IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+        ret = iommu_map(dev_data->iommu_domain, dev_data->mboxes_mem.pbase,
+                        dev_data->mboxes_mem.pbase, dev_data->mboxes_mem.size,
+                        IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+        ret = iommu_map(
+            dev_data->iommu_domain, dev_data->pcie_axi_bar_mem.pbase,
+            dev_data->pcie_axi_bar_mem.pbase, dev_data->pcie_axi_bar_mem.size,
+            IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+        ret = iommu_map(dev_data->iommu_domain, dev_data->ctrl_regs_mem.pbase,
+                        dev_data->ctrl_regs_mem.pbase,
+                        dev_data->ctrl_regs_mem.size, IOMMU_READ | IOMMU_WRITE,
+                        GFP_KERNEL);
+        ret = iommu_map(dev_data->iommu_domain, dev_data->l3_mem.pbase,
+                        dev_data->l3_mem.pbase, dev_data->l3_mem.size,
+                        IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+
+        pr_info("Attached Spatz to IOMMU domain\n");
+    }
 
     // DMA buffer list
     INIT_LIST_HEAD(&dev_data->test_head);
@@ -244,6 +321,33 @@ int card_platform_driver_probe(struct platform_device *pdev) {
 // gets called when the device is removed from the system
 int card_platform_driver_remove(struct platform_device *pdev) {
     struct cardev_private_data *dev_data = dev_get_drvdata(&pdev->dev);
+    struct device *spatz_dev;
+    int ret;
+
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->l2_intl_0_mem.pbase,
+    //                   dev_data->l2_intl_0_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->l2_cont_0_mem.pbase,
+    //                   dev_data->l2_cont_0_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->spatz_cluster_mem.pbase,
+    //                   dev_data->spatz_cluster_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->soc_ctrl_mem.pbase,
+    //                   dev_data->soc_ctrl_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->mboxes_mem.pbase,
+    //                   dev_data->mboxes_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->pcie_axi_bar_mem.pbase,
+    //                   dev_data->pcie_axi_bar_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->ctrl_regs_mem.pbase,
+    //                   dev_data->ctrl_regs_mem.size);
+    // ret = iommu_unmap(dev_data->iommu_domain, dev_data->l3_mem.pbase,
+    //                   dev_data->l3_mem.size);
+
+    spatz_dev = &of_find_device_by_node(
+                     of_get_child_by_name(pdev->dev.of_node, "spatz-cluster"))
+                     ->dev;
+    if (spatz_dev) {
+        iommu_detach_device(dev_data->iommu_domain, spatz_dev);
+    }
+    iommu_domain_free(dev_data->iommu_domain);
 
     // Remove a device that was created with device_create()
     device_destroy(cardrv_data.class_card, dev_data->dev_num);
@@ -259,15 +363,34 @@ int card_platform_driver_remove(struct platform_device *pdev) {
 }
 
 static const struct of_device_id carfield_of_match[] = {
-    { .compatible = "eth,carfield-soc", }, {},
+    {
+        .compatible = "eth,carfield-soc",
+    },
+    {},
 };
 MODULE_DEVICE_TABLE(of, carfield_of_match);
 
 struct platform_driver card_platform_driver = {
     .probe = card_platform_driver_probe,
     .remove = card_platform_driver_remove,
-    .driver = { .name = "eth-carfield", .of_match_table = carfield_of_match, }
+    .driver = {
+        .name = "eth-carfield",
+        .of_match_table = carfield_of_match,
+    }};
+
+static const struct of_device_id spatz_of_match[] = {
+    {
+        .compatible = "spatz-cluster,carfield",
+    },
+    {},
 };
+MODULE_DEVICE_TABLE(of, spatz_of_match);
+
+struct platform_driver spatz_platform_driver = {
+    .driver = {
+        .name = "eth-spatz",
+        .of_match_table = spatz_of_match,
+    }};
 
 #define MAX_DEVICES 10
 
@@ -283,7 +406,7 @@ static int __init card_platform_driver_init(void) {
     }
 
     // Create a device class under /sys/class
-    cardrv_data.class_card = class_create(THIS_MODULE, "card_class");
+    cardrv_data.class_card = class_create("card_class");
     if (IS_ERR(cardrv_data.class_card)) {
         pr_err("Class creation failed \n");
         ret = PTR_ERR(cardrv_data.class_card);
@@ -291,6 +414,8 @@ static int __init card_platform_driver_init(void) {
         return ret;
     }
 
+    // Register Spatz to probe its IOMMU
+    platform_driver_register(&spatz_platform_driver);
     platform_driver_register(&card_platform_driver);
 
     pr_debug("card platform driver loaded \n");
@@ -301,6 +426,7 @@ static int __init card_platform_driver_init(void) {
 static void __exit card_platform_driver_cleanup(void) {
     // Unregister the platform driver
     platform_driver_unregister(&card_platform_driver);
+    platform_driver_register(&spatz_platform_driver);
 
     // Class destroy
     class_destroy(cardrv_data.class_card);

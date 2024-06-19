@@ -302,6 +302,10 @@ uintptr_t hero_dev_l2_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr);
  */
 uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr);
 
+uintptr_t hero_iommu_map_virt(HeroDev *dev, unsigned size_b, void *v_addr);
+
+int hero_iommu_map_virt_to_phys(HeroDev *dev, unsigned size_b, void *v_addr, uintptr_t p_addr);
+
 /** Free memory previously allocated in contiguous L3.
  \param    pulp   pointer to the HeroDev structure
  \param    v_addr pointer to unsigned containing the virtual address

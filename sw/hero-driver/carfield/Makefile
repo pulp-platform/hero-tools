@@ -17,8 +17,8 @@ CROSS_COMPILE_BUILDROOT ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu
 
 # Linux compilation arguments
 obj-m := carfield.o
-carfield-objs := carfield_driver.o carfield_fops.o
-ccflags-y += -I$(src)/../common
+carfield-objs := carfield_driver.o carfield_fops.o ../common/hero_iommu.o
+ccflags-y += -I$(src)/../common -Idrivers/iommu/riscv
 
 .PHONY: all dis clean build
 
@@ -30,6 +30,9 @@ modules:
 
 dis: modules
 	$(CROSS_COMPILE_$(PLATFORM))objdump -DS carfield.ko > carfield.disasm
+
+deploy:
+	cp carfield.ko $(HERO_ROOT)/cva6-sdk/rootfs/root
 
 clean:
 	rm -f modules.order

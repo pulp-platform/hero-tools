@@ -16,7 +16,7 @@ struct driver_ioctl_arg {
     int mmap_id;
 };
 
-uintptr_t driver_lookup_mem(int device_fd, int mmap_id, size_t *size_b, uintptr_t *p_addr) {
+int driver_lookup_mem(int device_fd, int mmap_id, size_t *size_b, uintptr_t *p_addr) {
     struct driver_ioctl_arg chunk;
     chunk.mmap_id = mmap_id;
     int err = ioctl(device_fd, IOCTL_MEM_INFOS, &chunk);
@@ -27,6 +27,7 @@ uintptr_t driver_lookup_mem(int device_fd, int mmap_id, size_t *size_b, uintptr_
     }
     *size_b = chunk.size;
     *p_addr = chunk.result_phys_addr;
+
     return err;
 }
 
@@ -41,6 +42,7 @@ int driver_mmap(int device_fd, int mmap_id, size_t length,
         *res = NULL;
         return -EIO;
     }
+
     return 0;
 }
 
@@ -77,4 +79,37 @@ uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) 
     pr_trace("%p\n", user_virt_address);
 
     return user_virt_address;
+}
+
+uintptr_t hero_iommu_map_virt(HeroDev *dev, unsigned size_b, void *v_addr) {
+    struct driver_ioctl_arg chunk;
+    int err;
+    // MMAP requires page granularity
+    chunk.size = size_b;
+    chunk.result_phys_addr = 0;
+    chunk.result_virt_addr = v_addr;
+    pr_trace("calling ioctl\n");
+    err = ioctl(device_fd, IOCTL_IOMMU_MAP, &chunk);
+    pr_trace("done\n");
+    if (err) {
+        pr_error("%s driver allocator failed\n", __func__);
+        return NULL;
+    }
+    return chunk.result_phys_addr;
+}
+
+int hero_iommu_map_virt_to_phys(HeroDev *dev, unsigned size_b, void *v_addr, uintptr_t p_addr) {
+    struct driver_ioctl_arg chunk;
+    int err;
+    // MMAP requires page granularity
+    chunk.size = size_b;
+    chunk.result_phys_addr = p_addr;
+    chunk.result_virt_addr = v_addr;
+    pr_trace("calling ioctl\n");
+    err = ioctl(device_fd, IOCTL_IOMMU_MAP, &chunk);
+    pr_trace("done\n");
+    if (err)
+        pr_error("%s driver iommu\n", __func__);
+
+    return err;
 }

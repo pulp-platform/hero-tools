@@ -182,7 +182,7 @@ void hero_dev_exe_start(HeroDev *dev) {
 
     pr_trace("%s safety_island : TODO get bootadress from OMP\n", __func__);
 
-    // Reset Safety Island
+    // Reset Spatz
     car_set_isolate(1);
     writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence();
@@ -194,7 +194,6 @@ void hero_dev_exe_start(HeroDev *dev) {
     writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
     fence(); 
     car_set_isolate(0);
-
 
 	// Write entry point into boot address
     // Todo get address from openmp
@@ -220,5 +219,17 @@ int hero_dev_munmap(HeroDev *dev) {
     int err = 0;
     pr_trace("%p\n", dev);
     hero_dev_free_mboxes(dev);
+    // Reset Spatz
+    car_set_isolate(1);
+    writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
+    fence();
+    writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
+    fence();
+    for (volatile int i = 0; i < 16; i++);
+    writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_RST_OFFSET);
+    fence();
+    writew(1, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);
+    fence(); 
+    car_set_isolate(0);
     close(device_fd);
 }

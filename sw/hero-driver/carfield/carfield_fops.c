@@ -1,26 +1,28 @@
 #include <asm/io.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
+#include <linux/fs.h>
+#include <linux/interrupt.h>
+#include <linux/iommu.h>
+#include <linux/iova.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/kdev_t.h>
+#include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/of_irq.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/irqdesc.h>
-#include <linux/fs.h>
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/log2.h>
 
-#include "carfield_driver.h"
 #include "carfield.h"
+#include "carfield_driver.h"
 
 ssize_t card_read(struct file *filp, char __user *buff, size_t count,
                   loff_t *f_pos) {
@@ -76,7 +78,7 @@ int card_release(struct inode *inode, struct file *filp) {
 }
 
 int card_mmap(struct file *filp, struct vm_area_struct *vma) {
-    struct k_list *bufs_tail;
+    struct k_list *bufs_tail = NULL;
     unsigned long mapoffset, vsize, psize;
     char type[20];
     int ret;
@@ -142,7 +144,7 @@ int card_mmap(struct file *filp, struct vm_area_struct *vma) {
     }
 
     // set protection flags to avoid caching and paging
-    vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+    vm_flags_set(vma, VM_IO);
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
     pr_info("%s mmap: phys: %#lx, virt: %#lx vsize: %#lx psize: %#lx\n", type,
@@ -157,8 +159,10 @@ int card_mmap(struct file *filp, struct vm_area_struct *vma) {
     return ret;
 }
 
-static long card_ioctl(struct file *file, unsigned int cmd, unsigned long arg_user_addr) {
+static long card_ioctl(struct file *file, unsigned int cmd,
+                       unsigned long arg_user_addr) {
     // Pointers to user arguments
+    int err;
     void __user *argp = (void __user *)arg_user_addr;
     // Get driver data
     struct cardev_private_data *cardev_data =
@@ -168,25 +172,48 @@ static long card_ioctl(struct file *file, unsigned int cmd, unsigned long arg_us
     if (copy_from_user(&arg, argp, sizeof(struct card_ioctl_arg)))
         return -EFAULT;
 
+    pr_info("Driver IOCTL %u\n", cmd);
+
     switch (cmd) {
     // Alloc physically contiguous memory
     case IOCTL_DMA_ALLOC: {
         dma_addr_t result_phys = 0;
         void *result_virt = 0;
-        printk("dma_alloc_coherent %p, %llx (%llx pages)\n", &cardev_data->pdev->dev, arg.size, 1 << order_base_2(ALIGN(arg.size, PAGE_SIZE)/PAGE_SIZE));
-        // Alloc memory region (note PHY address = DMA address), issue with dma_alloc_coherent on milk-v
-        result_virt = __get_free_pages(GFP_KERNEL | GFP_DMA32, order_base_2(ALIGN(arg.size, PAGE_SIZE)/PAGE_SIZE));
+        printk("dma_alloc_coherent %p, %llx (%llx pages)\n",
+               &cardev_data->pdev->dev, arg.size,
+               1 << order_base_2(ALIGN(arg.size, PAGE_SIZE) / PAGE_SIZE));
+        // Alloc memory region (note PHY address = DMA address), issue with
+        // dma_alloc_coherent on milk-v
+
+        result_virt = __get_free_pages(
+            GFP_KERNEL | GFP_DMA32,
+            order_base_2(ALIGN(arg.size, PAGE_SIZE) / PAGE_SIZE));
         result_phys = virt_to_phys(result_virt);
-        printk("dma_alloc_coherent returns %llx %llx\n", result_virt, result_phys);
+
+        // err = iommu_map(cardev_data->iommu_domain, result_virt, result_phys,
+        // 	ALIGN(arg.size, PAGE_SIZE), IOMMU_READ | IOMMU_WRITE,
+        // GFP_KERNEL);
+        // if (err < 0) {
+        //     pr_err("iommu_map failed\n");
+        // 	return err;
+        // }
+
+        // dma_alloc_coherent(&cardev_data->pdev->dev, ALIGN(arg.size,
+        // PAGE_SIZE), &result_phys, GFP_KERNEL);
+
+        printk("dma_alloc_coherent returns %llx %llx\n", result_virt,
+               result_phys);
         if (!result_virt)
             return -ENOMEM;
         arg.result_virt_addr = result_virt;
         arg.result_phys_addr = result_phys;
 
-        // Offset if there is a PCIe endpoint in the device (then the driver should ran on the PCIe host)
-        // The mask removes the host offset to the device's tree
+        // Offset if there is a PCIe endpoint in the device (then the driver
+        // should ran on the PCIe host) The mask removes the host offset to the
+        // device's tree
         if (cardev_data->pcie_axi_bar_mem.pbase)
-            arg.result_phys_addr += 0xffffffff & cardev_data->pcie_axi_bar_mem.pbase - 0x40000000;
+            arg.result_phys_addr +=
+                0xffffffff & cardev_data->pcie_axi_bar_mem.pbase - 0x40000000;
 
         // Add to the buffer list
         struct k_list *new = kmalloc(sizeof(struct k_list), GFP_KERNEL);
@@ -202,7 +229,25 @@ static long card_ioctl(struct file *file, unsigned int cmd, unsigned long arg_us
         struct k_list *my;
         list_for_each(p, &cardev_data->test_head) {
             my = list_entry(p, struct k_list, list);
-            pr_info("pbase = %#llx, psize = %#llx\n", my->data->pbase, my->data->size);
+            pr_info("pbase = %#llx, psize = %#llx\n", my->data->pbase,
+                    my->data->size);
+        }
+        break;
+    }
+    case IOCTL_IOMMU_MAP: {
+        pr_info("Driver received IOCTL_IOMMU_MAP\n");
+
+        // Here phys_adress to hold the iova (let's put in memory unused by the
+        // device)
+        arg.result_phys_addr = 0x80000000 + (arg.result_virt_addr % 0x40000000);
+
+        err = hero_iommu_region_add(
+            cardev_data->iommu_domain, &cardev_data->iommu_region_list,
+            arg.result_virt_addr, arg.result_phys_addr, arg.size);
+
+        if (err < 0) {
+            pr_err("hero_iommu_region_add failed\n");
+            return err;
         }
         break;
     }
@@ -210,8 +255,9 @@ static long card_ioctl(struct file *file, unsigned int cmd, unsigned long arg_us
         pr_info("Lookup %i\n", arg.mmap_id);
         struct shared_mem *requested_mem;
         PTR_TO_DEVDATA_REGION(requested_mem, cardev_data, arg.mmap_id)
-        // TODO differenciate errors from uninitialized memory and unknown map_id
-        if( !requested_mem ){
+        // TODO differenciate errors from uninitialized memory and unknown
+        // map_id
+        if (!requested_mem) {
             pr_err("Unknown mmap_id %i\n", arg.mmap_id);
             return -1;
         }
@@ -224,15 +270,15 @@ static long card_ioctl(struct file *file, unsigned int cmd, unsigned long arg_us
     }
 
     // Send back result to user
-    if(copy_to_user(argp, &arg, sizeof(struct card_ioctl_arg)))
+    if (copy_to_user(argp, &arg, sizeof(struct card_ioctl_arg)))
         return -EFAULT;
     return 0;
 }
 
 // file operations of the driver
-struct file_operations card_fops = { .open = card_open,
-                                     .release = card_release,
-                                     .read = card_read,
-                                     .mmap = card_mmap,
-                                     .unlocked_ioctl = card_ioctl,
-                                     .owner = THIS_MODULE };
+struct file_operations card_fops = {.open = card_open,
+                                    .release = card_release,
+                                    .read = card_read,
+                                    .mmap = card_mmap,
+                                    .unlocked_ioctl = card_ioctl,
+                                    .owner = THIS_MODULE};

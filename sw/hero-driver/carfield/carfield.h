@@ -1,5 +1,6 @@
 #pragma once
 
+#include "hero_iommu.h"
 
 // General description of memory region
 struct shared_mem {
@@ -33,6 +34,10 @@ struct cardev_private_data {
     struct shared_mem pcie_axi_bar_mem;
     // DMA buffer list
     struct list_head test_head;
+    // IOMMU regions list
+    struct list_head iommu_region_list;
+    // IOMMU
+    struct iommu_domain *iommu_domain;
     // Char device
     char *buffer;
     unsigned int buffer_size;

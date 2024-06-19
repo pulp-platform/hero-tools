@@ -313,3 +313,13 @@ __attribute__((weak)) uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_
     pr_warn("%s unimplemented\n", __func__);
     return NULL;
 }
+
+__attribute__((weak)) uintptr_t hero_iommu_map_virt(HeroDev *dev, unsigned size_b, void *v_addr) {
+    pr_warn("%s unimplemented\n", __func__);
+    return 0;
+}
+
+__attribute__((weak)) int hero_iommu_map_virt_to_phys(HeroDev *dev, unsigned size_b, void *v_addr, uintptr_t p_addr) {
+    pr_warn("%s unimplemented\n", __func__);
+    return 0;
+}

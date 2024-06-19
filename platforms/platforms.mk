@@ -104,7 +104,7 @@ HERO_ARTIFACTS_DATA_spatz-bit := $(HERO_CARFIELD_ROOT)/target/xilinx/out
 
 # Clone carfield
 $(HERO_CARFIELD_ROOT)/Bender.yml:
-	git clone git@github.com:CyrilKoe/carfield.git --branch=ck/hero_paper $(dir $@)
+	git clone git@github.com:CyrilKoe/carfield.git --branch=ck/iommu $(dir $@)
 
 # Fetch Carfield's islands
 $(HERO_SPATZ_ROOT)/Bender.yml $(HERO_SAFETY_ROOT)/Bender.yml: $(HERO_CARFIELD_ROOT)/Bender.yml
@@ -178,6 +178,7 @@ hero-safety-sw-clean:
 $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/sw/build/spatzBenchmarks/libomptarget.a: $(HERO_SPATZ_ROOT)/Bender.yml FORCE
 	LLVM_INSTALL_DIR=$(HERO_INSTALL) GCC_INSTALL_DIR=/usr/pack/riscv-1.0-kgf/pulp-gcc-2.6.0 \
 	SPATZ_CLUSTER_CFG=$(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/cfg/carfield.hjson \
+	SPATZ_CFG_FILENAME=carfield.hjson \
 	make -C $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster sw
 
 hero-spatz-sw-all: $(HERO_SPATZ_ROOT)/hw/system/spatz_cluster/sw/build/spatzBenchmarks/libomptarget.a
