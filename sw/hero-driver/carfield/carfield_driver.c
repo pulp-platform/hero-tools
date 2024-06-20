@@ -1,5 +1,6 @@
 #include <asm/io.h>
 #include <linux/cdev.h>
+#include <linux/version.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -19,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 // drivers/iommu/riscv
-#include "iommu-bits.h"
+// #include "iommu-bits.h"
 
 #include "carfield.h"
 #include "carfield_driver.h"
@@ -191,6 +192,7 @@ int card_platform_driver_probe(struct platform_device *pdev) {
 
     // Request gpio irqs
     // TODO: Do not do that if running on PCIe host
+ #if HERO_PLATFORM == NATIVE
     for (i = 0; i < CARFIELD_GPIO_N_IRQS; i++) {
         irq = of_irq_get(of_get_child_by_name(pdev->dev.of_node, "gpio"), i);
         if (irq < 0)
@@ -206,6 +208,7 @@ int card_platform_driver_probe(struct platform_device *pdev) {
 
     *((uint32_t *)(dev_data->gpio_mem.vbase + 0x04)) = (uint32_t)0xffffffff;
     *((uint32_t *)(dev_data->gpio_mem.vbase + 0x34)) = (uint32_t)0xffffffff;
+#endif
 
     // Deisolate all islands
     for (i = ISOLATE_BEGIN_OFFSET; i < ISOLATE_END_OFFSET; i += 4)
@@ -241,6 +244,7 @@ int card_platform_driver_probe(struct platform_device *pdev) {
     // IOMMU region list
     INIT_LIST_HEAD(&dev_data->iommu_region_list);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
     // Get IOMMU
     if (iommu_present(&platform_bus_type)) {
         dev_data->iommu_domain = iommu_domain_alloc(&platform_bus_type);
@@ -255,6 +259,7 @@ int card_platform_driver_probe(struct platform_device *pdev) {
             pr_err("iommu_attach_device failed\n");
             return ret;
         }
+
 
         ret = iommu_map(dev_data->iommu_domain, dev_data->l2_intl_0_mem.pbase,
                         dev_data->l2_intl_0_mem.pbase,
@@ -289,6 +294,7 @@ int card_platform_driver_probe(struct platform_device *pdev) {
 
         pr_info("Attached Spatz to IOMMU domain\n");
     }
+#endif
 
     // DMA buffer list
     INIT_LIST_HEAD(&dev_data->test_head);
@@ -344,10 +350,13 @@ int card_platform_driver_remove(struct platform_device *pdev) {
     spatz_dev = &of_find_device_by_node(
                      of_get_child_by_name(pdev->dev.of_node, "spatz-cluster"))
                      ->dev;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
     if (spatz_dev) {
         iommu_detach_device(dev_data->iommu_domain, spatz_dev);
     }
     iommu_domain_free(dev_data->iommu_domain);
+#endif
 
     // Remove a device that was created with device_create()
     device_destroy(cardrv_data.class_card, dev_data->dev_num);
@@ -406,7 +415,12 @@ static int __init card_platform_driver_init(void) {
     }
 
     // Create a device class under /sys/class
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
     cardrv_data.class_card = class_create("card_class");
+#else
+    cardrv_data.class_card = class_create(THIS_MODULE, "card_class");
+#endif
     if (IS_ERR(cardrv_data.class_card)) {
         pr_err("Class creation failed \n");
         ret = PTR_ERR(cardrv_data.class_card);

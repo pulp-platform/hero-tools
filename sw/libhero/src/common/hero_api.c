@@ -123,14 +123,14 @@ int hero_dev_alloc_mboxes(HeroDev *dev) {
 int hero_dev_free_mboxes(HeroDev *dev) {
     pr_trace("%s default\n", __func__);
 
-    hero_dev_l2_free(dev, dev->mboxes.h2a_mbox);
-    hero_dev_l2_free(dev, dev->mboxes.h2a_mbox->data_v);
+    hero_dev_l2_free(dev, dev->mboxes.h2a_mbox->data_v, NULL);
+    hero_dev_l2_free(dev, dev->mboxes.h2a_mbox, NULL);
 
-    hero_dev_l2_free(dev, dev->mboxes.a2h_mbox);
-    hero_dev_l2_free(dev, dev->mboxes.a2h_mbox->data_v);
+    hero_dev_l2_free(dev, dev->mboxes.a2h_mbox->data_v, NULL);
+    hero_dev_l2_free(dev, dev->mboxes.a2h_mbox, NULL);
 
-    hero_dev_l2_free(dev, dev->mboxes.rb_mbox);
-    hero_dev_l2_free(dev, dev->mboxes.rb_mbox->data_v);
+    hero_dev_l2_free(dev, dev->mboxes.rb_mbox->data_v, NULL);
+    hero_dev_l2_free(dev, dev->mboxes.rb_mbox, NULL);
 
     return 0;
 }

@@ -32,51 +32,88 @@ typedef struct {
 } Config;
 
 typedef struct {
+    int classifier;
+    int ffn;
+    int kqv;
+    int same_mem;
+} Acc;
+
+Acc acc = {0};
+
+typedef struct {
     // token embedding table
     float *token_embedding_table; // (vocab_size, dim)
-    uintptr_t token_embedding_table_p;
+    float *token_embedding_table_dev;
+    uintptr_t token_embedding_table_dev_p;
     // weights for rmsnorms
     float *rms_att_weight; // (layer, dim) rmsnorm weights
     float *rms_ffn_weight; // (layer, dim)
     // weights for matmuls. note dim == n_heads * head_size
     float *wq; // (layer, dim, n_heads * head_size)
-    uintptr_t wq_p;
+    float *wq_dev;
+    uintptr_t wq_dev_p;
     float *wk; // (layer, dim, n_kv_heads * head_size)
-    float *wk_p;
+    float *wk_dev;
+    uintptr_t wk_dev_p;
     float *wv; // (layer, dim, n_kv_heads * head_size)
+    float *wv_dev;
+    uintptr_t wv_dev_p;
     float *wo; // (layer, n_heads * head_size, dim)
+    float *wo_dev;
+    uintptr_t wo_dev_p;
     // weights for ffn
     float *w1; // (layer, hidden_dim, dim)
+    float *w1_dev;
+    uintptr_t w1_dev_p;
     float *w2; // (layer, dim, hidden_dim)
+    float *w2_dev;
+    uintptr_t w2_dev_p;
     float *w3; // (layer, hidden_dim, dim)
+    float *w3_dev;
+    uintptr_t w3_dev_p;
     // final rmsnorm
     float *rms_final_weight; // (dim,)
     // (optional) classifier weights for the logits, on the last layer
     float *wcls;
-    uintptr_t wcls_p;
+    float *wcls_dev;
+    uintptr_t wcls_dev_p;
 } TransformerWeights;
 
 typedef struct {
     // current wave of activations
     float *x;  // activation at current time stamp (dim,)
     float *xb; // same, but inside a residual branch (dim,)
-    uintptr_t xb_p;
+    float *xb_dev;
+    uintptr_t xb_dev_p;
     float *xb2; // an additional buffer just for convenience (dim,)
+    float *xb2_dev;
+    uintptr_t xb2_dev_p;
     float *hb;  // buffer for hidden dimension in the ffn (hidden_dim,)
+    float *hb_dev;
+    uintptr_t hb_dev_p;
     float *hb2; // buffer for hidden dimension in the ffn (hidden_dim,)
+    float *hb2_dev;
+    uintptr_t hb2_dev_p;
     float *q;   // query (dim,)
-    uintptr_t q_p;
+    float *q_dev;
+    uintptr_t q_dev_p;
     float *k;      // key (dim,)
-    float *k_p;
+    float *k_dev;
+    uintptr_t k_dev_p;
     float *v;      // value (dim,)
+    float *v_dev;
+    uintptr_t v_dev_p;
     float *att;    // buffer for scores/attention values (n_heads, seq_len)
-    float *logits; // output logits
+    float *logits; // output logits*
     float *logits_dev;
     uintptr_t logits_dev_p;
     // kv cache
     float *key_cache;   // (layer, seq_len, dim)
-    float *key_cache_p;
+    float *key_cache_dev;
+    uintptr_t key_cache_dev_p;
     float *value_cache; // (layer, seq_len, dim)
+    float *value_cache_dev;
+    uintptr_t value_cache_dev_p;
 } RunState;
 
 typedef struct {
@@ -93,56 +130,75 @@ void malloc_run_state(RunState *s, Config *p) {
     // we calloc instead of malloc to keep valgrind happy
     int kv_dim = (p->dim * p->n_kv_heads) / p->n_heads;
     s->x = calloc(p->dim, sizeof(float));
-    //s->xb = calloc(p->dim, sizeof(float));
-    s->xb = hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->xb_p);
+    s->xb = calloc(p->dim, sizeof(float));
+    s->xb_dev = (float *) hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->xb_dev_p);
     s->xb2 = calloc(p->dim, sizeof(float));
+    s->xb2_dev = (float *) hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->xb2_dev_p);
     s->hb = calloc(p->hidden_dim, sizeof(float));
+    s->hb_dev = (float *) hero_dev_l3_malloc(NULL, p->hidden_dim * sizeof(float), &s->hb_dev_p);
     s->hb2 = calloc(p->hidden_dim, sizeof(float));
-    //s->q = calloc(p->dim, sizeof(float));
-    s->q = hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->q_p);
-    //s->key_cache = calloc(p->n_layers * p->seq_len * kv_dim, sizeof(float));
-    s->key_cache = hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->key_cache_p);
+    s->hb2_dev = (float *) hero_dev_l3_malloc(NULL, p->hidden_dim * sizeof(float), &s->hb2_dev_p);
+    s->q = calloc(p->dim, sizeof(float));
+    s->q_dev = (float *) hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &s->q_dev_p);
+    s->key_cache = calloc(p->n_layers * p->seq_len * kv_dim, sizeof(float));
+    s->key_cache_dev = (float *) hero_dev_l3_malloc(NULL, p->n_layers * p->seq_len * kv_dim * sizeof(float), &s->key_cache_dev_p);
     s->value_cache = calloc(p->n_layers * p->seq_len * kv_dim, sizeof(float));
+    s->value_cache_dev = (float *) hero_dev_l3_malloc(NULL, p->n_layers * p->seq_len * kv_dim * sizeof(float), &s->value_cache_dev_p);
     s->att = calloc(p->n_heads * p->seq_len, sizeof(float));
     s->logits = calloc(p->vocab_size, sizeof(float));
-    s->logits_dev = hero_dev_l3_malloc(NULL, p->vocab_size * sizeof(float),
-                                       &s->logits_dev_p);
+    s->logits_dev = (float *) hero_dev_l3_malloc(NULL, p->vocab_size * sizeof(float), &s->logits_dev_p);
     // ensure all mallocs went fine
     if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q ||
         !s->key_cache || !s->value_cache || !s->att || !s->logits ||
-        !s->logits_dev) {
+        !s->xb_dev || !s->xb2_dev || !s->hb_dev || !s->hb2_dev || !s->q_dev ||
+        !s->key_cache_dev || !s->value_cache_dev || !s->logits_dev
+        ) {
         fprintf(stderr, "malloc failed!\n");
         exit(EXIT_FAILURE);
+    }
+    if (acc.same_mem) {
+        // s->xb_dev = s->xb;
+        s->key_cache = s->key_cache_dev;
+        s->value_cache = s->value_cache_dev;
+        s->logits = s->logits_dev;
+        s->q = s->q_dev;
+        s->hb = s->hb_dev;
+        s->hb2 = s->hb2_dev;
     }
 }
 
 void free_run_state(RunState *s) {
     free(s->x);
-    //free(s->xb);
-    hero_dev_l3_free(NULL, s->xb, s->xb_p);
+    free(s->xb);
+    hero_dev_l3_free(NULL, (uintptr_t)s->xb_dev, s->xb_dev_p);
     free(s->xb2);
+    hero_dev_l3_free(NULL, (uintptr_t)s->xb2_dev, s->xb2_dev_p);
     free(s->hb);
+    hero_dev_l3_free(NULL, (uintptr_t)s->hb_dev, s->hb_dev_p);
     free(s->hb2);
-    //free(s->q);
-    hero_dev_l3_free(NULL, s->q, s->q_p);
+    hero_dev_l3_free(NULL, (uintptr_t)s->hb2_dev, s->hb2_dev_p);
+    free(s->q);
+    hero_dev_l3_free(NULL, (uintptr_t)s->q_dev, s->q_dev_p);
     free(s->att);
     free(s->logits);
-    //free(s->key_cache);
-    hero_dev_l3_free(NULL, s->key_cache, s->key_cache_p);
-
+    hero_dev_l3_free(NULL, (uintptr_t)s->logits_dev, s->logits_dev_p);
+    free(s->key_cache);
+    hero_dev_l3_free(NULL, (uintptr_t)s->key_cache_dev, s->key_cache_dev_p);
     free(s->value_cache);
+    hero_dev_l3_free(NULL, (uintptr_t)s->value_cache_dev, s->value_cache_dev_p);
 }
 
 float *alloc_buffer(float **mmap_ptr, unsigned int num_elems,
-                    uintptr_t *phys_ret) {
+                    uintptr_t *phys_ret, int copy) {
     uintptr_t phys_ret_;
     float *res = (float *)hero_dev_l3_malloc(NULL, num_elems * sizeof(float),
                                              &phys_ret_);
     if (!res)
         exit(EXIT_FAILURE);
-    memcpy(res, *mmap_ptr, num_elems * sizeof(float));
+    if (copy)
+        memcpy((void *)res, (void *)*mmap_ptr, num_elems * sizeof(float));
     *phys_ret = phys_ret_;
-    *mmap_ptr += num_elems;
+    //*mmap_ptr += num_elems;
     return res;
 }
 
@@ -154,32 +210,36 @@ void memory_map_weights(TransformerWeights *w, Config *p, float *ptr,
     unsigned long long n_layers = p->n_layers;
 
     w->token_embedding_table = ptr;
-    w->token_embedding_table =
-        alloc_buffer(&ptr, p->vocab_size * p->dim, &w->token_embedding_table_p);
-    // ptr += p->vocab_size * p->dim;
-    //  rns
+    w->token_embedding_table_dev = alloc_buffer(&ptr, p->vocab_size * p->dim, &w->token_embedding_table_dev_p, acc.classifier);
+    ptr += p->vocab_size * p->dim;
+    // rns
     w->rms_att_weight = ptr;
     ptr += n_layers * p->dim;
     // wq
     w->wq = ptr;
-    w->wq = alloc_buffer(&ptr, n_layers * p->dim * (p->n_heads * head_size), &w->wq_p);
-    // ptr += n_layers * p->dim * (p->n_heads * head_size);
+    w->wq_dev = alloc_buffer(&ptr, n_layers * p->dim * (p->n_heads * head_size), &w->wq_dev_p, acc.kqv);
+    ptr += n_layers * p->dim * (p->n_heads * head_size);
     // wk
     w->wk = ptr;
-    w->wk = alloc_buffer(&ptr, n_layers * p->dim * (p->n_kv_heads * head_size), &w->wk_p);
-    // ptr += n_layers * p->dim * (p->n_kv_heads * head_size);
+    w->wk_dev = alloc_buffer(&ptr, n_layers * p->dim * (p->n_kv_heads * head_size), &w->wk_dev_p, acc.kqv);
+    ptr += n_layers * p->dim * (p->n_kv_heads * head_size);
     // wv
     w->wv = ptr;
+    w->wv_dev = alloc_buffer(&ptr, n_layers * p->dim * (p->n_kv_heads * head_size), &w->wv_dev_p, acc.kqv);
     ptr += n_layers * p->dim * (p->n_kv_heads * head_size);
     w->wo = ptr;
+    w->wo_dev = alloc_buffer(&ptr, n_layers * (p->n_heads * head_size) * p->dim, &w->wo_dev_p, 0);
     ptr += n_layers * (p->n_heads * head_size) * p->dim;
     w->rms_ffn_weight = ptr;
     ptr += n_layers * p->dim;
     w->w1 = ptr;
+    w->w1_dev = alloc_buffer(&ptr, n_layers * p->dim * p->hidden_dim, &w->w1_dev_p, acc.ffn);
     ptr += n_layers * p->dim * p->hidden_dim;
     w->w2 = ptr;
+    w->w2_dev = alloc_buffer(&ptr, n_layers * p->hidden_dim * p->dim, &w->w2_dev_p, acc.ffn);
     ptr += n_layers * p->hidden_dim * p->dim;
     w->w3 = ptr;
+    w->w3_dev = alloc_buffer(&ptr, n_layers * p->dim * p->hidden_dim, &w->w3_dev_p, acc.ffn);
     ptr += n_layers * p->dim * p->hidden_dim;
     w->rms_final_weight = ptr;
     ptr += p->dim;
@@ -187,9 +247,16 @@ void memory_map_weights(TransformerWeights *w, Config *p, float *ptr,
            2; // skip what used to be freq_cis_real (for RoPE)
     ptr += p->seq_len * head_size /
            2; // skip what used to be freq_cis_imag (for RoPE)
-    w->wcls = shared_weights ? w->token_embedding_table : ptr;
-    w->wcls_p = w->token_embedding_table_p;
-    printf("Shared weights : %i\n\r", shared_weights);
+    w->wcls = w->token_embedding_table;
+    w->wcls_dev = w->token_embedding_table_dev;
+    w->wcls_dev_p = w->token_embedding_table_dev_p;
+    if (acc.same_mem) {
+        w->wq = w->wq_dev;
+        w->wk = w->wk_dev;
+        w->wv = w->wv_dev;
+        w->token_embedding_table = w->token_embedding_table_dev;
+        w->wcls = w->wcls_dev;
+    }
 }
 
 void read_checkpoint(char *checkpoint, Config *config,
@@ -292,9 +359,8 @@ float *forward(Transformer *transformer, int token, int pos) {
     TransformerWeights *w = &transformer->weights;
     RunState *s = &transformer->state;
     float *x = s->x;
-    static uintptr_t x_dev_p = NULL;
-    static float *x_dev = NULL;
-
+    uintptr_t x_dev_p = NULL;
+    float *x_dev;
     x_dev = (float *)hero_dev_l3_malloc(NULL, p->dim * sizeof(float), &x_dev_p);
     if (x_dev == NULL) {
         printf("hero_dev_l3_malloc failed!\n");
@@ -323,15 +389,29 @@ float *forward(Transformer *transformer, int token, int pos) {
         int loff =
             l * p->seq_len * kv_dim; // kv cache layer offset for convenience
         s->k = s->key_cache + loff + pos * kv_dim;
-        s->k_p = s->key_cache_p + loff + pos * kv_dim;
+        s->k_dev = s->key_cache_dev + loff + pos * kv_dim;
+        s->k_dev_p = s->key_cache_dev_p + (loff + pos * kv_dim)*sizeof(float);
         s->v = s->value_cache + loff + pos * kv_dim;
+        s->v_dev = s->value_cache_dev + loff + pos * kv_dim;
+        s->v_dev_p = s->value_cache_dev_p + (loff + pos * kv_dim)*sizeof(float);
 
         // qkv matmuls for this position
-        // matmul(s->q, s->xb, w->wq + l * dim * dim, dim, dim);
-        spatz_matmul(s->q, s->q_p, s->xb, s->xb_p, w->wq + l*dim*dim, w->wq_p + l*dim*dim, dim, dim);
-        matmul(s->k, s->xb, w->wk + l * dim * kv_dim, dim, kv_dim);
-        // spatz_matmul(s->k, s->k_p, s->xb, s->xb_p, w->wk + l * dim * kv_dim, w->wk_p + l * dim * kv_dim, dim, kv_dim);
-        matmul(s->v, s->xb, w->wv + l * dim * kv_dim, dim, kv_dim);
+        if(acc.kqv) {
+            //if (!acc.same_mem)
+            memcpy(s->xb_dev, s->xb, dim * sizeof(float));
+            spatz_matmul(s->q, s->q_dev, s->q_dev_p, s->xb, s->xb_dev, s->xb_dev_p, w->wq + l * dim * dim   , w->wq_dev + l * dim * dim   , w->wq_dev_p + (l * dim * dim   )*sizeof(float), dim, dim);
+            spatz_matmul(s->k, s->k_dev, s->k_dev_p, s->xb, s->xb_dev, s->xb_dev_p, w->wk + l * dim * kv_dim, w->wk_dev + l * dim * kv_dim, w->wk_dev_p + (l * dim * kv_dim)*sizeof(float), dim, kv_dim);
+            spatz_matmul(s->v, s->v_dev, s->v_dev_p, s->xb, s->xb_dev, s->xb_dev_p, w->wv + l * dim * kv_dim, w->wv_dev + l * dim * kv_dim, w->wv_dev_p + (l * dim * kv_dim)*sizeof(float), dim, kv_dim);
+            if (!acc.same_mem) {
+                memcpy(s->q, s->q_dev, dim * sizeof(float));
+                memcpy(s->k, s->k_dev, kv_dim * sizeof(float));
+                memcpy(s->v, s->v_dev, kv_dim * sizeof(float));
+            }
+        } else {
+            matmul(s->q, s->xb, w->wq + l * dim * dim, dim, dim);
+            matmul(s->k, s->xb, w->wk + l * dim * kv_dim, dim, kv_dim);
+            matmul(s->v, s->xb, w->wv + l * dim * kv_dim, dim, kv_dim);
+        }
 
         // RoPE relative positional encoding: complex-valued rotate q and k in
         // each head
@@ -398,6 +478,7 @@ float *forward(Transformer *transformer, int token, int pos) {
 
         // final matmul to get the output of the attention
         matmul(s->xb2, s->xb, w->wo + l * dim * dim, dim, dim);
+        //spatz_matmul(s->xb2, s->xb2_p, s->xb, s->xb_p, w->wo + l * dim * dim, w->wo_p + l * dim * dim, dim, dim);
 
         // residual connection back into x
         for (int i = 0; i < dim; i++) {
@@ -409,9 +490,18 @@ float *forward(Transformer *transformer, int token, int pos) {
 
         // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) *
         // self.w3(x)) first calculate self.w1(x) and self.w3(x)
-        matmul(s->hb, s->xb, w->w1 + l * dim * hidden_dim, dim, hidden_dim);
-        matmul(s->hb2, s->xb, w->w3 + l * dim * hidden_dim, dim, hidden_dim);
-
+        if(acc.ffn) {
+            memcpy(s->xb_dev, s->xb, p->dim * sizeof(float));
+            spatz_matmul(s->hb, s->hb_dev, s->hb_dev_p, s->xb, s->xb_dev, s->xb_dev_p, w->w1 + l*dim*hidden_dim, w->w1_dev + l*dim*hidden_dim, w->w1_dev_p + (l*dim*hidden_dim)*sizeof(float), dim, hidden_dim);
+            spatz_matmul(s->hb2, s->hb2_dev, s->hb2_dev_p, s->xb, s->xb_dev, s->xb_dev_p, w->w3 + l*dim*hidden_dim, w->w3_dev + l*dim*hidden_dim, w->w3_dev_p + (l*dim*hidden_dim)*sizeof(float), dim, hidden_dim);
+            if(!acc.same_mem) {
+                memcpy(s->hb2, s->hb2_dev, p->hidden_dim * sizeof(float));
+                memcpy(s->hb, s->hb_dev, p->hidden_dim * sizeof(float));
+            }
+        } else {
+            matmul(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
+            matmul(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        }
         // SwiGLU non-linearity
         for (int i = 0; i < hidden_dim; i++) {
             float val = s->hb[i];
@@ -423,7 +513,15 @@ float *forward(Transformer *transformer, int token, int pos) {
         }
 
         // final matmul to get the output of the ffn
-        matmul(s->xb, s->hb, w->w2 + l * dim * hidden_dim, hidden_dim, dim);
+        // spatz_matmul(s->xb, s->xb_dev, s->xb_dev_p, s->hb, s->hb_dev, s->hb_dev_p, w->w2 + l * dim * hidden_dim, w->w2_dev + l * dim * hidden_dim, w->w2_dev_p + l * dim * hidden_dim, hidden_dim, dim);
+        if(acc.ffn) {
+            if(!acc.same_mem)
+                memcpy(s->hb_dev, s->hb, hidden_dim*sizeof(float));
+            spatz_matmul(s->xb, s->xb_dev, s->xb_dev_p, s->hb, s->hb_dev, s->hb_dev_p, w->w2 + l * dim * hidden_dim, w->w2_dev + l * dim * hidden_dim, w->w2_dev_p + (l * dim * hidden_dim)*sizeof(float), hidden_dim, dim);
+            memcpy(s->xb, s->xb_dev, dim*sizeof(float));
+        } else {
+            matmul(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        }
 
         // residual connection
         for (int i = 0; i < dim; i++) {
@@ -434,31 +532,19 @@ float *forward(Transformer *transformer, int token, int pos) {
     // final rmsnorm
     rmsnorm(x, x, w->rms_final_weight, dim);
 
-    // classifier into logits
-    memcpy(x_dev, x, p->dim * sizeof(float));
+    if(acc.classifier) {
+        memcpy(x_dev, x, p->dim * sizeof(float));
+        spatz_matmul(s->logits, s->logits_dev, s->logits_dev_p, x, x_dev, x_dev_p, w->wcls, w->wcls_dev, w->wcls_dev_p, p->dim, p->vocab_size);
+        if(!acc.same_mem)
+            memcpy(s->logits, s->logits_dev, p->vocab_size * sizeof(float));
+    } else {
+        matmul(s->logits, x, w->wcls, p->dim, p->vocab_size);
+    }
 
-    //for(int i = 0; i < 10; i++)
-    //    printf("%f (%x)\n\r", x_dev[i], *(unsigned int*)&x_dev[i]);
-    //printf("\n\r");
-    //for(int i = 0; i < 10; i++)
-    //    printf("%f (%x)\n\r", w->wcls[i], *(unsigned int*)&w->wcls[i]);
-    //printf("\n\r");
 
-    spatz_matmul(s->logits_dev, s->logits_dev_p, x_dev, x_dev_p, w->wcls,
-                 w->wcls_p, /*p->dim*/ 288, p->vocab_size);
-    //matmul(s->logits, x_dev, w->wcls, /*p->dim*/ 288, p->vocab_size);
-    //for(int i = 0; i < 10; i++)
-    //    printf("%f %f (%x %x)\n\r", s->logits[i], s->logits_dev[i], *(unsigned int*)&s->logits[i], *(unsigned int*)&s->logits_dev[i]);
-// matmul(s->logits_dev, x, w->wcls, p->dim, p->vocab_size);
-//  for now pcie use device memory so we need to copy around
-#if __HERO_HOST == sg2042
-    memcpy(s->logits, s->logits_dev, p->vocab_size * sizeof(float));
+    hero_dev_l3_free(NULL, (uintptr_t)x_dev, x_dev_p);
+
     return s->logits;
-#endif
-
-    hero_dev_l3_free(NULL, x_dev, p->dim * sizeof(float));
-
-    return s->logits_dev;
 }
 
 // ----------------------------------------------------------------------------
@@ -1139,6 +1225,19 @@ int main(int argc, char *argv[]) {
             mode = argv[i + 1];
         } else if (argv[i][1] == 'y') {
             system_prompt = argv[i + 1];
+        } else if (argv[i][1] == 'a') {
+            if (strcmp(argv[i + 1], "classifier") == 0) {
+                acc.classifier = 1;
+            } else if (strcmp(argv[i + 1], "ffn") == 0) {
+                acc.ffn = 1;
+            } else if (strcmp(argv[i + 1], "kqv") == 0) {
+                acc.kqv = 1;
+            } else if (strcmp(argv[i + 1], "same_mem") == 0) {
+                acc.same_mem = 1;
+            } else {
+                printf("Unkown acceleration.\n");
+                exit(EXIT_FAILURE);
+            }
         } else {
             error_usage();
         }

@@ -307,9 +307,9 @@ int main(int argc, char *argv[]) {
         printf("%u - ", hero_dma_cycles[i]);
     printf("\n");
 
-    hero_dev_l3_free(NULL, D, width  * sizeof(DTYPE));
-    hero_dev_l3_free(NULL, C, width  * height * sizeof(DTYPE));
-    hero_dev_l3_free(NULL, E, height * sizeof(DTYPE));
+    hero_dev_l3_free(NULL, D, D_phys);
+    hero_dev_l3_free(NULL, C, C_phys);
+    hero_dev_l3_free(NULL, E, E_phys);
     free(C_test);
     free(D_test);
     free(E_test);

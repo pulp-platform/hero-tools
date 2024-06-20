@@ -90,8 +90,8 @@ float fdotp_32b(const float *a, const float *b, unsigned int avl) {
 
 #endif
 
-int spatz_matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_,
-                 DTYPE *w_, uint32_t w_p_, int n_, int d_) {
+int spatz_matmul(DTYPE *xout_, DTYPE *xout_dev_, uint32_t xout_dev_p_, DTYPE *x_, DTYPE *x_dev_, uint32_t x_dev_p_,
+                 DTYPE *w_, DTYPE *w_dev_, uint32_t w_dev_p_, int n_, int d_) {
 
     if (n_ * 9 > MAX_ELEM) {
         printf("Error : Size too large\n\r");
@@ -99,16 +99,18 @@ int spatz_matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_,
     }
 
     char toprint[128];
-    snprintf(toprint, 128, "enter_omp_matvec-%u", n_);
-    hero_add_timestamp(toprint, __func__, 0);
+    // snprintf(toprint, 128, "enter_omp_matvec-%u", n_);
+    // hero_add_timestamp(toprint, __func__, 0);
 
-#pragma omp target device(1) map(to : n_, d_, xout_p_, x_p_, w_p_)
+    //printf("%llx %llx %llx %llx %llx %llx %llx %llx %llx\n\r", xout_, xout_dev_, xout_dev_p_, x_, x_dev_, x_dev_p_, w_,  w_dev_, w_dev_p_);
+
+#pragma omp target device(1) map(to : n_, d_, xout_dev_p_, x_dev_p_, w_dev_p_)
     {
         volatile uint32_t n = n_;
         volatile uint32_t d = d_;
-        volatile uint32_t xout_p = xout_p_;
-        volatile uint32_t x_p = x_p_;
-        volatile uint32_t w_p = w_p_;
+        volatile uint32_t xout_p = xout_dev_p_;
+        volatile uint32_t x_p = x_dev_p_;
+        volatile uint32_t w_p = w_dev_p_;
 
 #ifdef __HERO_1
 
@@ -116,7 +118,7 @@ int spatz_matmul(DTYPE *xout_, uint32_t xout_p_, DTYPE *x_, uint32_t x_p_,
             goto omp_exit;
         }
 
-        printf("\n\r%x - n %u d %u xout_p %x x_p %x w_p %x\n\r", n, d, xout_p, x_p, w_p);
+        //printf("\n\r%x - n %u d %u xout_p %x x_p %x w_p %x\n\r", n, d, xout_p, x_p, w_p);
 
         uint32_t alloc_save = snrt_l1_get_next();
 

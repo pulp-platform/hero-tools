@@ -218,7 +218,7 @@ int hero_dev_init(HeroDev *dev) {
 int hero_dev_munmap(HeroDev *dev) {
     int err = 0;
     pr_trace("%p\n", dev);
-    hero_dev_free_mboxes(dev);
+    //hero_dev_free_mboxes(dev);
     // Reset Spatz
     car_set_isolate(1);
     writew(0, car_soc_ctrl + CARFIELD_SPATZ_CLUSTER_CLK_EN_OFFSET);

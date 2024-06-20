@@ -18,7 +18,7 @@ CROSS_COMPILE_BUILDROOT ?= $(BR_OUTPUT_DIR)/host/bin/riscv64-buildroot-linux-gnu
 # Linux compilation arguments
 obj-m := carfield.o
 carfield-objs := carfield_driver.o carfield_fops.o ../common/hero_iommu.o
-ccflags-y += -I$(src)/../common -Idrivers/iommu/riscv
+ccflags-y += -I$(src)/../common -Idrivers/iommu/riscv -DHERO_PLATFORM=$(PLATFORM)
 
 .PHONY: all dis clean build
 

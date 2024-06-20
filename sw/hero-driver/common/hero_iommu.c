@@ -2,7 +2,7 @@
 #include <linux/iommu.h>
 #include <linux/mm.h>
 #include <linux/types.h>
-
+#include <linux/version.h>
 #include "hero_iommu.h"
 
 int hero_iommu_region_add(struct iommu_domain *iommu_domain,
@@ -11,7 +11,7 @@ int hero_iommu_region_add(struct iommu_domain *iommu_domain,
     int ret, i;
     unsigned long nr_pages = length >> PAGE_SHIFT;
     struct page **pages;
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
     pages =
         (struct page **)kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 
@@ -41,6 +41,8 @@ int hero_iommu_region_add(struct iommu_domain *iommu_domain,
     new->data->length = length;
     new->data->iova = user_addr;
     list_add_tail(&new->list, iommu_region_list);
-
     return nr_pages;
+#else
+    return -1;
+#endif
 }

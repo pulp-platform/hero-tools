@@ -1,5 +1,6 @@
 #include <asm/io.h>
 #include <linux/cdev.h>
+#include <linux/version.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
@@ -144,7 +145,11 @@ int card_mmap(struct file *filp, struct vm_area_struct *vma) {
     }
 
     // set protection flags to avoid caching and paging
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
     vm_flags_set(vma, VM_IO);
+#else
+    vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP | VM_PFNMAP;
+#endif
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
     pr_info("%s mmap: phys: %#lx, virt: %#lx vsize: %#lx psize: %#lx\n", type,
