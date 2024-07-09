@@ -23,7 +23,7 @@ OBJDUMP     := $(CROSS_COMPILE)objdump
 CFLAGS_safety_island := -I src/carfield -I $(HERO_ROOT)/sw/hero-driver/carfield
 SRCS_safety_island := src/carfield/safety_island.c
 
-CFLAGS_spatz_cluster := -I src/carfield -I $(HERO_ROOT)/sw/hero-driver/carfield
+CFLAGS_spatz_cluster := -I src/carfield -I $(HERO_ROOT)/sw/hero-driver/carfield -DDEVICE_IOMMU
 SRCS_spatz_cluster := src/carfield/spatz_cluster.c
 
 CFLAGS_occamy := -I src/occamy -I $(HERO_ROOT)/sw/hero-driver/occamy

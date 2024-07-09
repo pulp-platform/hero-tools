@@ -81,6 +81,7 @@ uintptr_t hero_host_l3_malloc(HeroDev *dev, unsigned size_b, uintptr_t *p_addr) 
     return user_virt_address;
 }
 
+#ifdef DEVICE_IOMMU
 uintptr_t hero_iommu_map_virt(HeroDev *dev, unsigned size_b, void *v_addr) {
     struct driver_ioctl_arg chunk;
     int err;
@@ -113,3 +114,4 @@ int hero_iommu_map_virt_to_phys(HeroDev *dev, unsigned size_b, void *v_addr, uin
 
     return err;
 }
+#endif
