@@ -168,23 +168,23 @@ void malloc_run_state(RunState *s, Config *p) {
 }
 
 void free_run_state(RunState *s) {
-    free(s->x);
-    free(s->xb);
+    //free(s->x);
+    //free(s->xb);
     hero_dev_l3_free(NULL, (uintptr_t)s->xb_dev, s->xb_dev_p);
-    free(s->xb2);
+    //free(s->xb2);
     hero_dev_l3_free(NULL, (uintptr_t)s->xb2_dev, s->xb2_dev_p);
-    free(s->hb);
+    //free(s->hb);
     hero_dev_l3_free(NULL, (uintptr_t)s->hb_dev, s->hb_dev_p);
-    free(s->hb2);
+    //free(s->hb2);
     hero_dev_l3_free(NULL, (uintptr_t)s->hb2_dev, s->hb2_dev_p);
-    free(s->q);
+    //free(s->q);
     hero_dev_l3_free(NULL, (uintptr_t)s->q_dev, s->q_dev_p);
-    free(s->att);
-    free(s->logits);
+    //free(s->att);
+    //free(s->logits);
     hero_dev_l3_free(NULL, (uintptr_t)s->logits_dev, s->logits_dev_p);
-    free(s->key_cache);
+    //free(s->key_cache);
     hero_dev_l3_free(NULL, (uintptr_t)s->key_cache_dev, s->key_cache_dev_p);
-    free(s->value_cache);
+    //free(s->value_cache);
     hero_dev_l3_free(NULL, (uintptr_t)s->value_cache_dev, s->value_cache_dev_p);
 }
 

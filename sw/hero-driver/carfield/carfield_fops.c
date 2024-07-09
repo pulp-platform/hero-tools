@@ -125,7 +125,7 @@ int card_mmap(struct file *filp, struct vm_area_struct *vma) {
         break;
     case DMA_BUFS_MMAP_ID:
         strncpy(type, "buffer", sizeof(type));
-        pr_info("Ready to map latest buffer\n");
+        pr_debug("Ready to map latest buffer\n");
         bufs_tail =
             list_last_entry(&cardev_data->test_head, struct k_list, list);
         mapoffset = bufs_tail->data->pbase;
@@ -152,14 +152,14 @@ int card_mmap(struct file *filp, struct vm_area_struct *vma) {
 #endif
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-    pr_info("%s mmap: phys: %#lx, virt: %#lx vsize: %#lx psize: %#lx\n", type,
+    pr_debug("%s mmap: phys: %#lx, virt: %#lx vsize: %#lx psize: %#lx\n", type,
             mapoffset, vma->vm_start, vsize, psize);
 
     ret = remap_pfn_range(vma, vma->vm_start, mapoffset >> PAGE_SHIFT, vsize,
                           vma->vm_page_prot);
 
     if (ret)
-        pr_info("mmap error: %d\n", ret);
+        pr_err("mmap error: %d\n", ret);
 
     return ret;
 }
@@ -177,14 +177,14 @@ static long card_ioctl(struct file *file, unsigned int cmd,
     if (copy_from_user(&arg, argp, sizeof(struct card_ioctl_arg)))
         return -EFAULT;
 
-    pr_info("Driver IOCTL %u\n", cmd);
+    pr_debug("Driver IOCTL %u\n", cmd);
 
     switch (cmd) {
     // Alloc physically contiguous memory
     case IOCTL_DMA_ALLOC: {
         dma_addr_t result_phys = 0;
         void *result_virt = 0;
-        printk("dma_alloc_coherent %p, %llx (%llx pages)\n",
+        pr_debug("dma_alloc_coherent %p, %llx (%llx pages)\n",
                &cardev_data->pdev->dev, arg.size,
                1 << order_base_2(ALIGN(arg.size, PAGE_SIZE) / PAGE_SIZE));
         // Alloc memory region (note PHY address = DMA address), issue with
@@ -206,7 +206,7 @@ static long card_ioctl(struct file *file, unsigned int cmd,
         // dma_alloc_coherent(&cardev_data->pdev->dev, ALIGN(arg.size,
         // PAGE_SIZE), &result_phys, GFP_KERNEL);
 
-        printk("dma_alloc_coherent returns %llx %llx\n", result_virt,
+        pr_debug("dma_alloc_coherent returns %llx %llx\n", result_virt,
                result_phys);
         if (!result_virt)
             return -ENOMEM;
@@ -229,18 +229,18 @@ static long card_ioctl(struct file *file, unsigned int cmd,
         list_add_tail(&new->list, &cardev_data->test_head);
 
         // Print the buffer list for debug
-        pr_info("Reading list :\n");
+        pr_debug("Reading list :\n");
         struct list_head *p;
         struct k_list *my;
         list_for_each(p, &cardev_data->test_head) {
             my = list_entry(p, struct k_list, list);
-            pr_info("pbase = %#llx, psize = %#llx\n", my->data->pbase,
+            pr_debug("pbase = %#llx, psize = %#llx\n", my->data->pbase,
                     my->data->size);
         }
         break;
     }
     case IOCTL_IOMMU_MAP: {
-        pr_info("Driver received IOCTL_IOMMU_MAP\n");
+        pr_debug("Driver received IOCTL_IOMMU_MAP\n");
 
         // Here phys_adress to hold the iova (let's put in memory unused by the
         // device)
@@ -257,7 +257,7 @@ static long card_ioctl(struct file *file, unsigned int cmd,
         break;
     }
     case IOCTL_MEM_INFOS: {
-        pr_info("Lookup %i\n", arg.mmap_id);
+        pr_debug("Lookup %i\n", arg.mmap_id);
         struct shared_mem *requested_mem;
         PTR_TO_DEVDATA_REGION(requested_mem, cardev_data, arg.mmap_id)
         // TODO differenciate errors from uninitialized memory and unknown

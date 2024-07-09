@@ -47,3 +47,4 @@ clean:
 	rm -f *.o_shipped
 	rm -f *.cmd
 	rm -f .*.cmd
+	rm -f ../common/*.o.*

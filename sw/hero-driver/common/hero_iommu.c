@@ -15,9 +15,7 @@ int hero_iommu_region_add(struct iommu_domain *iommu_domain,
     pages =
         (struct page **)kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 
-    pr_info("Pin %llx for %lu pages\n", user_addr, nr_pages);
-
-    pr_info("pin_user_pages_fast %llx %llx %x %llx\n", user_addr, nr_pages,
+    pr_debug("pin_user_pages_fast %llx %llx %x %llx\n", user_addr, nr_pages,
             FOLL_WRITE, pages);
 
     ret = get_user_pages_fast(user_addr, nr_pages, 0, pages);
