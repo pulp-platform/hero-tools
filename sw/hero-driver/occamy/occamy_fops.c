@@ -1,3 +1,9 @@
+// Copyright 2024 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
+//
+// Cyril Koenig <cykoenig@iis.ee.ethz.ch>
+
 #include <asm/io.h>
 #include <linux/cdev.h>
 #include <linux/device.h>

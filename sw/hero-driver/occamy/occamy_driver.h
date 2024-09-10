@@ -1,5 +1,10 @@
-#ifndef __CARFIELD_DRIVER_H
-#define __CARFIELD_DRIVER_H
+// Copyright 2024 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
+//
+// Cyril Koenig <cykoenig@iis.ee.ethz.ch>
+
+#pragma once
 
 // Memmap offsets, used for mmap and ioctl
 #define SOC_CTRL_MMAP_ID 0
@@ -38,6 +43,3 @@ struct card_ioctl_arg {
     arg_local.result_virt_addr = MEM_ENTRY.vbase;        \
     arg_local.result_phys_addr = MEM_ENTRY.pbase;        \
     arg_local.size             = MEM_ENTRY.size;
-
-
-#endif

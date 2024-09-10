@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Pirmin Vogel <vogelpi@iis.ee.ethz.ch>
+// Cyril Koenig <cykoenig@iis.ee.ethz.ch>
 
 #pragma once
 

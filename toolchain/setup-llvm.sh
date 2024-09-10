@@ -1,15 +1,12 @@
-#!/usr/bin/env bash
-
-# Copyright 2022 ETH Zurich and University of Bologna.
+# Copyright 2024 ETH Zurich and University of Bologna.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
+
+#!/bin/bash -xe
 
 # This script is usually executed in output/tc-llvm
 # THIS_DIR holds the script's path (toolchain)
 THIS_DIR=$(dirname "$(readlink -f "$0")")
-
-# Stop on all errors
-set -e
 
 # Check installation path
 if [ -z "$HERO_INSTALL" ]; then
