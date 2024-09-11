@@ -6,3 +6,6 @@
 	path = toolchain/llvm-project
 	url = git@iis-git.ee.ethz.ch:iis-compilers/llvm-project.git
 	ignore = dirty
+[submodule "sw/libhero/vendor/o1heap"]
+	path = sw/libhero/vendor/o1heap
+	url = https://github.com/pavel-kirienko/o1heap
