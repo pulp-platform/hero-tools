@@ -34,7 +34,7 @@ This repository contains the following directories:
 | `scripts`    | Helper scripts                                                                                   |
 | `sw`         | Hero runtime library, LLVM libraries, the OpenMP target runtime library, and the device drivers  |
 | `toolchain`  | An LLVM fork containing the Hero OpenMP target runtime library implementation                    |
-
+_* generated files_
 ## Getting started
 
 To build the software stack, compile a FPGA bitstream, get a Linux image, and more, go to [Getting Started](gs.md).
