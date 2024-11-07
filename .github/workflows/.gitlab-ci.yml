@@ -1,0 +1,22 @@
+# Copyright 2023 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# Author: Cyril Koenig <cykoenig@iis.ee.ethz.ch>
+
+name: gitlab-ci
+
+on: [ push, pull_request, workflow_dispatch ]
+
+jobs:
+  check:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Check Gitlab CI
+        uses: pulp-platform/pulp-actions/gitlab-ci@v2.4.2 # update version as needed, not autoupdated
+        # Skip on forks or pull requests from forks due to missing secrets.
+        if: github.repository == 'pulp-platform/hero-tools' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        with:
+          domain: iis-git.ee.ethz.ch
+          repo: github-mirror/hero-tools
+          token: ${{ secrets.GITLAB_TOKEN }}
