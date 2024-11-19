@@ -4,7 +4,7 @@
 	ignore = dirty
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
-	url = git@iis-git.ee.ethz.ch:iis-compilers/llvm-project.git
+	url = git@github.com:pulp-platform/llvm-project.git
 	ignore = dirty
 [submodule "sw/libhero/vendor/o1heap"]
 	path = sw/libhero/vendor/o1heap

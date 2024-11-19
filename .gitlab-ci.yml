@@ -81,7 +81,10 @@ all-sw:
       - sw/libhero/lib/
       - sw/libhero/include
 
+# Safety island is not supported upstream. The required device openmptarget.a
+# is located in branch narrn/omptarget (https://iis-git.ee.ethz.ch/cykoenig/safety-island)
 safety_island_apps:
+  when: manual
   stage: apps
   needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:
@@ -92,6 +95,7 @@ safety_island_apps:
     - make -C apps/omp/basic/offload_benchmark/ DEVICES=safety_island
 
 spatz_apps:
+  when: manual
   stage: apps
   needs: [ init, cva6-sdk, llvm, all-sw ]
   before_script:

@@ -104,7 +104,7 @@ HERO_ARTIFACTS_DATA_spatz-bit := $(HERO_CARFIELD_ROOT)/target/xilinx/out
 
 # Clone carfield
 $(HERO_CARFIELD_ROOT)/Bender.yml:
-	git clone git@github.com:CyrilKoe/carfield.git --branch=ck/iommu $(dir $@)
+	git clone git@github.com:CyrilKoe/carfield.git --branch=ck/vcu118 $(dir $@)
 
 # Fetch Carfield's islands
 $(HERO_SPATZ_ROOT)/Bender.yml $(HERO_SAFETY_ROOT)/Bender.yml: $(HERO_CARFIELD_ROOT)/Bender.yml
