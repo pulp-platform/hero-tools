@@ -10,7 +10,7 @@ HeroSDK is developed as part of the [PULP project](https://pulp-platform.org/), 
 
 The HeroSDK contains compilers (Linux GCC & Bare metal LLVM), Linux kernel modules, host and device runtimes. See the figure felow for more informations.
 
-_(Figure disclosed once the paper is on Arxiv)_
+![image](docs/img/hero_sdk_stack.png)
 
 ## This repository
 
@@ -52,4 +52,4 @@ Unless specified otherwise in the respective file headers, all code checked into
 
 ## References
 
-_(Added once the paper is on Arxiv)_
+_(To come)_
